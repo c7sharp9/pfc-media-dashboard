@@ -25,6 +25,7 @@ import {
   Headphones,
   ScissorsLineDashed,
   Link2,
+  Share2,
 } from "lucide-react";
 import { SiFacebook } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -288,18 +289,34 @@ export default function SermonDetail() {
             data-testid="input-sermon-title"
           />
         </div>
-        {hasChanges && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          {hasChanges && (
+            <Button
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+              size="sm"
+              className="gap-1 h-7 text-xs"
+              data-testid="button-save"
+            >
+              <Save className="w-3 h-3" />
+              {updateMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          )}
           <Button
-            onClick={handleSave}
-            disabled={updateMutation.isPending}
+            variant="ghost"
             size="sm"
-            className="gap-1 shrink-0 h-7 text-xs"
-            data-testid="button-save"
+            className="gap-1 h-7 text-xs"
+            onClick={() => {
+              const url = `${window.location.origin}${window.location.pathname}#/sermon/${params.id}`;
+              navigator.clipboard.writeText(url);
+              toast({ title: "Link copied", description: "Share link copied to clipboard." });
+            }}
+            data-testid="button-share"
           >
-            <Save className="w-3 h-3" />
-            {updateMutation.isPending ? "Saving..." : "Save"}
+            <Share2 className="w-3 h-3" />
+            Share
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Two-column layout on larger screens */}
