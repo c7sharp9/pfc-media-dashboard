@@ -575,9 +575,19 @@ export default function SermonDetail() {
           <Label className="text-xs text-muted-foreground">General Notes</Label>
           <Textarea
             value={fields["General Notes"] || ""}
-            onChange={(e) => handleFieldChange("General Notes", e.target.value)}
+            onChange={(e) => {
+              handleFieldChange("General Notes", e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = e.target.scrollHeight + "px";
+            }}
+            ref={(el) => {
+              if (el) {
+                el.style.height = "auto";
+                el.style.height = el.scrollHeight + "px";
+              }
+            }}
             placeholder="Add notes..."
-            className="min-h-[60px] text-xs bg-background"
+            className="min-h-[60px] text-xs bg-background resize-none overflow-hidden"
             data-testid="input-general-notes"
           />
         </div>
