@@ -43,6 +43,7 @@ import {
   AlertCircle,
   Church,
 } from "lucide-react";
+import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Edit, Sermon } from "@shared/schema";
@@ -203,6 +204,12 @@ function SermonReference({
         >
           {platform}
         </Badge>
+        <Link href={`/sermon/${sermon.id}`}>
+          <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground ml-auto">
+            <ExternalLink className="w-3 h-3" />
+            Open
+          </Button>
+        </Link>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {cards.map((card) => (
@@ -265,8 +272,6 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
       updateMutation.mutate(changed);
     }
   };
-
-  const sermonId = edit.fields["Sermon Link"]?.[0];
 
   return (
     <Card className="overflow-hidden">
@@ -456,9 +461,8 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
             )}
           </div>
 
-          {(sermonId || edit.fields["Broadcast Date"]) && (
+          {edit.fields["Broadcast Date"] && (
             <SermonReference
-              sermonId={sermonId}
               broadcastDate={edit.fields["Broadcast Date"]}
             />
           )}
@@ -548,9 +552,6 @@ function NewEditDialog() {
       Type: selectedTypes.length > 0 ? selectedTypes : undefined,
       "Video URL": videoUrl || undefined,
     };
-    if (linkedSermon) {
-      payload["Sermon Link"] = [linkedSermon.id];
-    }
     // Remove undefined values
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
     createMutation.mutate(payload);
