@@ -5,6 +5,7 @@ Internal dashboard for managing People of Faith Church (PFC) media operations --
 - **Repo:** c7sharp9/pfc-media-dashboard
 - **Live:** https://pfc-media-dashboard.netlify.app
 - **Deploys via:** Netlify (auto-deploy from main)
+- **iCloud docs:** `~/Library/Mobile Documents/com~apple~CloudDocs/Projects/business/reframe/Content Creation/Content Creation/PFC HUB FOLDER TEMPLATE/`
 
 ## Stack
 
