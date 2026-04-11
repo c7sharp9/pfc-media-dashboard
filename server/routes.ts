@@ -253,17 +253,21 @@ export async function registerRoutes(
     try {
       const date = req.query.date as string;
       const platform = req.query.platform as string;
-      if (!date || !platform) {
+      if (!date) {
         return res.json({ records: [] });
       }
       if (useSampleData) {
         const found = SAMPLE_SERMONS.filter(
-          (s) => s.fields["Service"] === date && s.fields["Platform"] === platform
+          (s) => s.fields["Service"] === date && (!platform || s.fields["Platform"] === platform)
         );
         return res.json({ records: found });
       }
-      const formula = encodeURIComponent(`AND({Service}='${date}',{Platform}='${platform}')`);
-      const url = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}?filterByFormula=${formula}&maxRecords=1`;
+      // Use DATESTR() for Airtable date field comparison
+      const datePart = `DATESTR({Service})='${date}'`;
+      const formula = platform
+        ? encodeURIComponent(`AND(${datePart},{Platform}='${platform}')`)
+        : encodeURIComponent(datePart);
+      const url = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}?filterByFormula=${formula}&maxRecords=5`;
       const data = await airtableFetch(url);
       res.json({ records: data.records || [] });
     } catch (err: any) {
