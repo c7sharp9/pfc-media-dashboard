@@ -40,7 +40,7 @@ export interface Edit {
     "Type"?: string[];
     "Date Completed"?: string;
     "Video URL"?: string;
-    "Verticalized"?: string;
+    "Vertical"?: string;
     "Transcript"?: string;
     "JA Notes"?: string;
     "Editors Notes"?: string;
@@ -48,7 +48,7 @@ export interface Edit {
     "Editor Name"?: string;
     "Sermon Link"?: string[];
     "Title"?: string;
-    "XML (Zipped) URL"?: string;
+    "XML"?: string;
   };
 }
 
@@ -98,13 +98,13 @@ export const createEditSchema = z.object({
   "JA Notes": z.string().optional(),
   "Editors Notes": z.string().optional(),
   "Sermon Link": z.array(z.string()).optional(),
-  "XML (Zipped) URL": z.string().url().optional().or(z.literal("")),
+  "XML": z.string().url().optional().or(z.literal("")),
+  "Vertical": z.string().url().optional().or(z.literal("")),
 });
 
 export const updateEditSchema = createEditSchema.partial().extend({
   "Date Completed": z.string().optional().nullable(),
   "Date Posted": z.string().optional().nullable(),
-  "Verticalized": z.string().url().optional().or(z.literal("")),
 });
 
 export type UpdateSermonFields = z.infer<typeof updateSermonSchema>;

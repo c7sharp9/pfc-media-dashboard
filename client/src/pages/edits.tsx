@@ -386,11 +386,20 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">XML (Zipped) URL</Label>
+              <Label className="text-xs text-muted-foreground">XML (Zipped)</Label>
               <Input
                 type="url"
-                value={editFields["XML (Zipped) URL"] || ""}
-                onChange={(e) => handleFieldChange("XML (Zipped) URL", e.target.value)}
+                value={editFields["XML"] || ""}
+                onChange={(e) => handleFieldChange("XML", e.target.value)}
+                className="text-xs h-8 bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Vertical URL</Label>
+              <Input
+                type="url"
+                value={editFields["Vertical"] || ""}
+                onChange={(e) => handleFieldChange("Vertical", e.target.value)}
                 className="text-xs h-8 bg-background"
               />
             </div>
