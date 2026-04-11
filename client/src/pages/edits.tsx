@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -30,10 +31,21 @@ import {
   ChevronUp,
   Save,
   Trash2,
+  ArrowLeft,
+  Check,
+  Upload,
+  Scissors,
+  Headphones,
+  FileText,
+  Youtube,
+  Globe,
+  Loader2,
+  AlertCircle,
+  Church,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Edit } from "@shared/schema";
+import type { Edit, Sermon } from "@shared/schema";
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return "—";
@@ -71,6 +83,120 @@ function getTypeColor(type: string): string {
     default:
       return "";
   }
+}
+
+// Read-only card showing a sermon URL field with icon
+function SermonReferenceCard({
+  icon,
+  label,
+  url,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  url?: string;
+}) {
+  return (
+    <Card className="p-3 border border-border bg-muted/30">
+      <div className="flex items-start gap-2.5">
+        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-muted text-muted-foreground">
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-medium text-foreground">{label}</span>
+          {url ? (
+            <div className="flex items-center gap-1.5 mt-1">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-400 hover:text-blue-300 truncate underline underline-offset-2"
+              >
+                {url.length > 50 ? url.slice(0, 50) + "..." : url}
+              </a>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                <ExternalLink className="w-3 h-3 text-muted-foreground" />
+              </a>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">Not set</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// Sermon reference section shown in expanded edit cards
+function SermonReference({ sermonId }: { sermonId: string }) {
+  const { data: sermon } = useQuery<Sermon>({
+    queryKey: ["/api/sermons", sermonId],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/sermons/${sermonId}`);
+      return res.json();
+    },
+  });
+
+  if (!sermon) return null;
+
+  const platform = sermon.fields["Platform"];
+  const isSunday = platform === "Sunday";
+
+  const sundayCards = [
+    { icon: <Upload className="w-3 h-3" />, label: "Full Service", url: sermon.fields["Video URL"] },
+    { icon: <Scissors className="w-3 h-3" />, label: "Trimmed Media", url: sermon.fields["Trimmed Video URL"] },
+    { icon: <Headphones className="w-3 h-3" />, label: "Audio", url: sermon.fields["Audio URL"] },
+    { icon: <FileText className="w-3 h-3" />, label: "Transcript", url: sermon.fields["Transcription URL"] },
+    { icon: <Youtube className="w-3 h-3" />, label: "YouTube New Video", url: sermon.fields["YouTube Trimmed URL"] },
+    { icon: <Youtube className="w-3 h-3" />, label: "YouTube Full Service", url: sermon.fields["YouTube Full Service URL"] },
+    { icon: <Globe className="w-3 h-3" />, label: "Website URL", url: sermon.fields["Sermon URL"] },
+  ];
+
+  const wednesdayCards = [
+    { icon: <Upload className="w-3 h-3" />, label: "Clean Edit", url: sermon.fields["Video URL"] },
+    { icon: <Headphones className="w-3 h-3" />, label: "Audio", url: sermon.fields["Audio URL"] },
+    { icon: <FileText className="w-3 h-3" />, label: "Transcript", url: sermon.fields["Transcription URL"] },
+    { icon: <Youtube className="w-3 h-3" />, label: "YouTube Link", url: sermon.fields["Wednesday YouTube Link"] },
+    { icon: <Globe className="w-3 h-3" />, label: "Website URL", url: sermon.fields["Sermon URL"] },
+  ];
+
+  const cards = isSunday ? sundayCards : wednesdayCards;
+
+  return (
+    <div className="space-y-2">
+      <Separator />
+      <div className="flex items-center gap-2 pt-1">
+        <Church className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Sermon Reference
+        </span>
+        {sermon.fields["Title"] && (
+          <span className="text-xs text-muted-foreground">
+            — {sermon.fields["Title"]}
+          </span>
+        )}
+        <Badge
+          variant="secondary"
+          className={`text-[10px] leading-tight px-1.5 py-0 ${
+            isSunday
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+              : "bg-amber-500/15 text-amber-400 border-amber-500/20"
+          }`}
+        >
+          {platform}
+        </Badge>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {cards.map((card) => (
+          <SermonReferenceCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            url={card.url}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
@@ -120,6 +246,8 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
       updateMutation.mutate(changed);
     }
   };
+
+  const sermonId = edit.fields["Sermon Link"]?.[0];
 
   return (
     <Card className="overflow-hidden">
@@ -308,6 +436,8 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
               </Button>
             )}
           </div>
+
+          {sermonId && <SermonReference sermonId={sermonId} />}
         </div>
       )}
     </Card>
@@ -316,8 +446,32 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
 
 function NewEditDialog() {
   const [open, setOpen] = useState(false);
-  const [fields, setFields] = useState<Record<string, any>>({});
+  const [step, setStep] = useState(1);
+  const [platform, setPlatform] = useState<string>("");
+  const [broadcastDate, setBroadcastDate] = useState("");
+  const [linkedSermon, setLinkedSermon] = useState<Sermon | null>(null);
+  const [title, setTitle] = useState("");
+  const [editorName, setEditorName] = useState("");
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [status, setStatus] = useState("In Progress");
+  const [videoUrl, setVideoUrl] = useState("");
   const { toast } = useToast();
+
+  // Search for sermon when date + platform are set
+  const {
+    data: searchResult,
+    isFetching: isSearching,
+  } = useQuery<{ records: Sermon[] }>({
+    queryKey: ["/api/sermons/search", broadcastDate, platform],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `/api/sermons/search?date=${broadcastDate}&platform=${platform}`
+      );
+      return res.json();
+    },
+    enabled: step === 2 && !!broadcastDate && !!platform && platform !== "Other",
+  });
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
@@ -326,8 +480,7 @@ function NewEditDialog() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/edits"] });
-      setOpen(false);
-      setFields({});
+      resetAndClose();
       toast({ title: "Created", description: "New edit added." });
     },
     onError: (err: Error) => {
@@ -335,12 +488,60 @@ function NewEditDialog() {
     },
   });
 
-  const handleCreate = () => {
-    createMutation.mutate(fields);
+  const resetAndClose = () => {
+    setOpen(false);
+    setStep(1);
+    setPlatform("");
+    setBroadcastDate("");
+    setLinkedSermon(null);
+    setTitle("");
+    setEditorName("");
+    setSelectedTypes([]);
+    setStatus("In Progress");
+    setVideoUrl("");
   };
 
+  const handlePlatformSelect = (p: string) => {
+    setPlatform(p);
+    setStep(2);
+  };
+
+  const handleDateContinue = () => {
+    const foundSermon = searchResult?.records?.[0] || null;
+    setLinkedSermon(foundSermon);
+    if (foundSermon?.fields["Title"]) {
+      setTitle(foundSermon.fields["Title"]);
+    }
+    setStep(3);
+  };
+
+  const handleCreate = () => {
+    const payload: Record<string, any> = {
+      Title: title,
+      "Broadcast Date": broadcastDate,
+      "Editor Name": editorName || undefined,
+      Status: status,
+      Type: selectedTypes.length > 0 ? selectedTypes : undefined,
+      "Video URL": videoUrl || undefined,
+    };
+    if (linkedSermon) {
+      payload["Sermon Link"] = [linkedSermon.id];
+    }
+    // Remove undefined values
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+    createMutation.mutate(payload);
+  };
+
+  const foundSermon = searchResult?.records?.[0];
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) resetAndClose();
+        else setOpen(true);
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" className="gap-1" data-testid="button-new-edit">
           <Plus className="w-4 h-4" />
@@ -349,90 +550,240 @@ function NewEditDialog() {
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>New Edit</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {step > 1 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setStep(step - 1)}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            )}
+            New Edit
+          </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 pt-2">
-          <div className="space-y-1">
-            <Label className="text-xs">Title</Label>
-            <Input
-              value={fields["Title"] || ""}
-              onChange={(e) => setFields({ ...fields, Title: e.target.value })}
-              className="text-sm"
-              data-testid="input-new-edit-title"
+
+        {/* Step indicator */}
+        <div className="flex items-center justify-center gap-1.5 pb-1">
+          {[1, 2, 3].map((s) => (
+            <div
+              key={s}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                s === step
+                  ? "bg-primary"
+                  : s < step
+                    ? "bg-emerald-500"
+                    : "bg-muted"
+              }`}
             />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Broadcast Date</Label>
-            <Input
-              type="date"
-              value={fields["Broadcast Date"] || ""}
-              onChange={(e) => setFields({ ...fields, "Broadcast Date": e.target.value })}
-              className="text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Editor Name</Label>
-            <Input
-              value={fields["Editor Name"] || ""}
-              onChange={(e) => setFields({ ...fields, "Editor Name": e.target.value })}
-              className="text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Status</Label>
-            <Select
-              value={fields["Status"] || ""}
-              onValueChange={(v) => setFields({ ...fields, Status: v })}
-            >
-              <SelectTrigger className="text-sm">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Ready for Review">Ready for Review</SelectItem>
-                <SelectItem value="Revision Needed">Revision Needed</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Type</Label>
-            <div className="flex gap-4">
-              {["Recap", "Clip", "Sizzle"].map((t) => (
-                <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                  <Checkbox
-                    checked={(fields["Type"] || []).includes(t)}
-                    onCheckedChange={(checked) => {
-                      const current = fields["Type"] || [];
-                      const next = checked
-                        ? [...current, t]
-                        : current.filter((x: string) => x !== t);
-                      setFields({ ...fields, Type: next });
-                    }}
-                  />
-                  <span className="text-xs">{t}</span>
-                </label>
-              ))}
+          ))}
+        </div>
+
+        {/* Step 1: Platform */}
+        {step === 1 && (
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-muted-foreground text-center">
+              Select the service platform
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handlePlatformSelect("Sunday")}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                  <Church className="w-5 h-5 text-emerald-400" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Sunday</span>
+              </button>
+              <button
+                onClick={() => handlePlatformSelect("Wednesday")}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-colors cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full bg-amber-500/15 flex items-center justify-center">
+                  <Church className="w-5 h-5 text-amber-400" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Wednesday</span>
+              </button>
+              <button
+                onClick={() => handlePlatformSelect("Other")}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <Plus className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Other</span>
+              </button>
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Video URL</Label>
-            <Input
-              type="url"
-              value={fields["Video URL"] || ""}
-              onChange={(e) => setFields({ ...fields, "Video URL": e.target.value })}
-              className="text-sm"
-            />
+        )}
+
+        {/* Step 2: Broadcast Date + Sermon Lookup */}
+        {step === 2 && (
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-center gap-2">
+              <Badge
+                variant="secondary"
+                className={`text-xs ${
+                  platform === "Sunday"
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                    : platform === "Wednesday"
+                      ? "bg-amber-500/15 text-amber-400 border-amber-500/20"
+                      : ""
+                }`}
+              >
+                {platform}
+              </Badge>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Broadcast Date</Label>
+              <Input
+                type="date"
+                value={broadcastDate}
+                onChange={(e) => setBroadcastDate(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+
+            {/* Sermon search results */}
+            {broadcastDate && platform !== "Other" && (
+              <div className="rounded-lg border border-border p-3">
+                {isSearching ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Searching for sermon...
+                  </div>
+                ) : foundSermon ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {foundSermon.fields["Title"] || "Untitled Sermon"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDate(foundSermon.fields["Service"])} — {foundSermon.fields["Platform"]}
+                      </p>
+                    </div>
+                  </div>
+                ) : searchResult ? (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      No sermon found for this date. The edit will be created without a sermon link.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <Button
+              onClick={handleDateContinue}
+              disabled={!broadcastDate}
+              className="w-full"
+            >
+              Continue
+            </Button>
           </div>
-          <Button
-            onClick={handleCreate}
-            disabled={createMutation.isPending}
-            className="w-full"
-            data-testid="button-create-edit"
-          >
-            {createMutation.isPending ? "Creating..." : "Create Edit"}
-          </Button>
-        </div>
+        )}
+
+        {/* Step 3: Details + Create */}
+        {step === 3 && (
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-center gap-2">
+              <Badge
+                variant="secondary"
+                className={`text-xs ${
+                  platform === "Sunday"
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
+                    : platform === "Wednesday"
+                      ? "bg-amber-500/15 text-amber-400 border-amber-500/20"
+                      : ""
+                }`}
+              >
+                {platform}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {formatDate(broadcastDate)}
+              </span>
+              {linkedSermon && (
+                <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-emerald-400" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Title</Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={linkedSermon?.fields["Title"] || "Edit title"}
+                className="text-sm"
+                data-testid="input-new-edit-title"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Editor Name</Label>
+              <Input
+                value={editorName}
+                onChange={(e) => setEditorName(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Type</Label>
+              <div className="flex gap-4">
+                {["Recap", "Clip", "Sizzle"].map((t) => (
+                  <label key={t} className="flex items-center gap-1.5 cursor-pointer">
+                    <Checkbox
+                      checked={selectedTypes.includes(t)}
+                      onCheckedChange={(checked) => {
+                        setSelectedTypes((prev) =>
+                          checked ? [...prev, t] : prev.filter((x) => x !== t)
+                        );
+                      }}
+                    />
+                    <span className="text-xs">{t}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Ready for Review">Ready for Review</SelectItem>
+                  <SelectItem value="Revision Needed">Revision Needed</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Video URL</Label>
+              <Input
+                type="url"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            <Button
+              onClick={handleCreate}
+              disabled={createMutation.isPending}
+              className="w-full"
+              data-testid="button-create-edit"
+            >
+              {createMutation.isPending ? "Creating..." : "Create Edit"}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -248,6 +248,30 @@ export async function registerRoutes(
     }
   });
 
+  // Search sermons by date + platform (for linking edits)
+  app.get("/api/sermons/search", async (req, res) => {
+    try {
+      const date = req.query.date as string;
+      const platform = req.query.platform as string;
+      if (!date || !platform) {
+        return res.json({ records: [] });
+      }
+      if (useSampleData) {
+        const found = SAMPLE_SERMONS.filter(
+          (s) => s.fields["Service"] === date && s.fields["Platform"] === platform
+        );
+        return res.json({ records: found });
+      }
+      const formula = encodeURIComponent(`AND({Service}='${date}',{Platform}='${platform}')`);
+      const url = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}?filterByFormula=${formula}&maxRecords=1`;
+      const data = await airtableFetch(url);
+      res.json({ records: data.records || [] });
+    } catch (err: any) {
+      console.error("Error searching sermons:", err.message);
+      res.json({ records: [] });
+    }
+  });
+
   app.get("/api/sermons/:id", async (req, res) => {
     try {
       if (useSampleData) {

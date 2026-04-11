@@ -26,6 +26,8 @@ export interface Sermon {
     "Replayed On"?: string;
     "Don't Replay"?: boolean;
     "Don't Replay Reason"?: string;
+    "Wednesday YouTube Link"?: string;
+    "Wednesday YouTube Trimmed"?: boolean;
   };
 }
 
@@ -94,6 +96,7 @@ export const createEditSchema = z.object({
   "Transcript": z.string().optional(),
   "JA Notes": z.string().optional(),
   "Editors Notes": z.string().optional(),
+  "Sermon Link": z.array(z.string()).optional(),
 });
 
 export const updateEditSchema = createEditSchema.partial().extend({
