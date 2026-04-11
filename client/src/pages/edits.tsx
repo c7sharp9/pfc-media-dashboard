@@ -41,7 +41,6 @@ import {
   Globe,
   Loader2,
   AlertCircle,
-  Church,
 } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -135,6 +134,10 @@ function SermonReference({
   sermonId?: string;
   broadcastDate?: string;
 }) {
+  const { toast } = useToast();
+  const [transcriptUrl, setTranscriptUrl] = useState("");
+  const [transcriptDirty, setTranscriptDirty] = useState(false);
+
   // Direct fetch if we have a sermon ID
   const { data: sermonById } = useQuery<Sermon>({
     queryKey: ["/api/sermons", sermonId],
@@ -156,6 +159,36 @@ function SermonReference({
   });
 
   const sermon = sermonById || searchResult?.records?.[0];
+
+  // Sync transcript state when sermon loads
+  useState(() => {
+    if (sermon?.fields["Transcription URL"]) {
+      setTranscriptUrl(sermon.fields["Transcription URL"]);
+    }
+  });
+
+  // Update transcript when sermon data changes
+  const prevTranscript = sermon?.fields["Transcription URL"] || "";
+  if (prevTranscript && !transcriptDirty && transcriptUrl !== prevTranscript) {
+    setTranscriptUrl(prevTranscript);
+  }
+
+  const updateSermonMutation = useMutation({
+    mutationFn: async (fields: Record<string, any>) => {
+      const res = await apiRequest("PATCH", `/api/sermons/${sermon!.id}`, fields);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons", sermon!.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons/search", broadcastDate] });
+      setTranscriptDirty(false);
+      toast({ title: "Saved", description: "Sermon transcript updated." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
   if (!sermon) return null;
 
   const platform = sermon.fields["Platform"];
@@ -165,7 +198,6 @@ function SermonReference({
     { icon: <Upload className="w-3 h-3" />, label: "Full Service", url: sermon.fields["Video URL"] },
     { icon: <Scissors className="w-3 h-3" />, label: "Trimmed Media", url: sermon.fields["Trimmed Video URL"] },
     { icon: <Headphones className="w-3 h-3" />, label: "Audio", url: sermon.fields["Audio URL"] },
-    { icon: <FileText className="w-3 h-3" />, label: "Transcript", url: sermon.fields["Transcription URL"] },
     { icon: <Youtube className="w-3 h-3" />, label: "YouTube New Video", url: sermon.fields["YouTube Trimmed URL"] },
     { icon: <Youtube className="w-3 h-3" />, label: "YouTube Full Service", url: sermon.fields["YouTube Full Service URL"] },
     { icon: <Globe className="w-3 h-3" />, label: "Website URL", url: sermon.fields["Sermon URL"] },
@@ -174,7 +206,6 @@ function SermonReference({
   const wednesdayCards = [
     { icon: <Upload className="w-3 h-3" />, label: "Clean Edit", url: sermon.fields["Video URL"] },
     { icon: <Headphones className="w-3 h-3" />, label: "Audio", url: sermon.fields["Audio URL"] },
-    { icon: <FileText className="w-3 h-3" />, label: "Transcript", url: sermon.fields["Transcription URL"] },
     { icon: <Youtube className="w-3 h-3" />, label: "YouTube Link", url: sermon.fields["Wednesday YouTube Link"] },
     { icon: <Globe className="w-3 h-3" />, label: "Website URL", url: sermon.fields["Sermon URL"] },
   ];
@@ -185,7 +216,6 @@ function SermonReference({
     <div className="space-y-2">
       <Separator />
       <div className="flex items-center gap-2 pt-1">
-        <Church className="w-3.5 h-3.5 text-muted-foreground" />
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Sermon Reference
         </span>
@@ -207,10 +237,46 @@ function SermonReference({
         <Link href={`/sermon/${sermon.id}`}>
           <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground ml-auto">
             <ExternalLink className="w-3 h-3" />
-            Open
+            Open Sermon
           </Button>
         </Link>
       </div>
+
+      {/* Editable Transcript URL — writes to sermon */}
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">Transcript URL</Label>
+        <div className="flex gap-2">
+          <Input
+            type="url"
+            placeholder="Enter transcript URL..."
+            value={transcriptUrl}
+            onChange={(e) => {
+              setTranscriptUrl(e.target.value);
+              setTranscriptDirty(true);
+            }}
+            className="text-xs h-8 bg-background"
+          />
+          {transcriptUrl && (
+            <a href={transcriptUrl} target="_blank" rel="noopener noreferrer">
+              <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Button>
+            </a>
+          )}
+          {transcriptDirty && (
+            <Button
+              onClick={() => updateSermonMutation.mutate({ "Transcription URL": transcriptUrl })}
+              disabled={updateSermonMutation.isPending}
+              size="sm"
+              className="h-8 px-2 text-xs gap-1 shrink-0"
+            >
+              <Save className="w-3 h-3" />
+              {updateSermonMutation.isPending ? "..." : "Save"}
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {cards.map((card) => (
           <SermonReferenceCard
@@ -380,6 +446,15 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
                 type="url"
                 value={editFields["Video URL"] || ""}
                 onChange={(e) => handleFieldChange("Video URL", e.target.value)}
+                className="text-xs h-8 bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">XML (Zipped) URL</Label>
+              <Input
+                type="url"
+                value={editFields["XML (Zipped) URL"] || ""}
+                onChange={(e) => handleFieldChange("XML (Zipped) URL", e.target.value)}
                 className="text-xs h-8 bg-background"
               />
             </div>
@@ -615,30 +690,21 @@ function NewEditDialog() {
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => handlePlatformSelect("Sunday")}
-                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors cursor-pointer"
+                className="flex items-center justify-center px-3 py-2.5 rounded-lg border border-border hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors cursor-pointer"
               >
-                <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
-                  <Church className="w-3 h-3 text-emerald-400" />
-                </div>
-                <span className="text-xs font-medium text-foreground">Sunday</span>
+                <span className="text-xs font-medium text-emerald-400">Sunday</span>
               </button>
               <button
                 onClick={() => handlePlatformSelect("Wednesday")}
-                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-colors cursor-pointer"
+                className="flex items-center justify-center px-3 py-2.5 rounded-lg border border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-colors cursor-pointer"
               >
-                <div className="w-5 h-5 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
-                  <Church className="w-3 h-3 text-amber-400" />
-                </div>
-                <span className="text-xs font-medium text-foreground">Wednesday</span>
+                <span className="text-xs font-medium text-amber-400">Wednesday</span>
               </button>
               <button
                 onClick={() => handlePlatformSelect("Other")}
-                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-border hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                className="flex items-center justify-center px-3 py-2.5 rounded-lg border border-border hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors cursor-pointer"
               >
-                <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center shrink-0">
-                  <Plus className="w-3 h-3 text-muted-foreground" />
-                </div>
-                <span className="text-xs font-medium text-foreground">Other</span>
+                <span className="text-xs font-medium text-muted-foreground">Other</span>
               </button>
             </div>
           </div>
