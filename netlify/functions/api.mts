@@ -74,6 +74,22 @@ export default async (req: Request, context: Context) => {
       return json({ records: data.records || [], nextCursor: data.offset || null });
     }
 
+    // GET /sermons/search?date=YYYY-MM-DD&platform=Sunday|Wednesday
+    if (path === "/sermons/search" && req.method === "GET") {
+      const date = url.searchParams.get("date");
+      const platform = url.searchParams.get("platform");
+      if (!date) {
+        return json({ records: [] });
+      }
+      const datePart = `DATESTR({Service})='${date}'`;
+      const formula = platform
+        ? encodeURIComponent(`AND(${datePart},{Platform}='${platform}')`)
+        : encodeURIComponent(datePart);
+      const apiUrl = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}?filterByFormula=${formula}&maxRecords=5`;
+      const data = await airtableFetch(apiUrl);
+      return json({ records: data.records || [] });
+    }
+
     // GET /sermons/:id
     const sermonMatch = path.match(/^\/sermons\/(.+)$/);
     if (sermonMatch && req.method === "GET") {
