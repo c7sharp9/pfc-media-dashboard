@@ -127,70 +127,7 @@ function SermonReferenceCard({
 }
 
 // Sermon reference section shown in expanded edit cards
-function SermonReference({
-  sermonId,
-  broadcastDate,
-}: {
-  sermonId?: string;
-  broadcastDate?: string;
-}) {
-  const { toast } = useToast();
-  const [transcriptUrl, setTranscriptUrl] = useState("");
-  const [transcriptDirty, setTranscriptDirty] = useState(false);
-
-  // Direct fetch if we have a sermon ID
-  const { data: sermonById } = useQuery<Sermon>({
-    queryKey: ["/api/sermons", sermonId],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/sermons/${sermonId}`);
-      return res.json();
-    },
-    enabled: !!sermonId,
-  });
-
-  // Fallback: search by broadcast date if no sermon ID
-  const { data: searchResult } = useQuery<{ records: Sermon[] }>({
-    queryKey: ["/api/sermons/search", broadcastDate],
-    queryFn: async () => {
-      const res = await apiRequest("GET", `/api/sermons/search?date=${broadcastDate}`);
-      return res.json();
-    },
-    enabled: !sermonId && !!broadcastDate,
-  });
-
-  const sermon = sermonById || searchResult?.records?.[0];
-
-  // Sync transcript state when sermon loads
-  useState(() => {
-    if (sermon?.fields["Transcription URL"]) {
-      setTranscriptUrl(sermon.fields["Transcription URL"]);
-    }
-  });
-
-  // Update transcript when sermon data changes
-  const prevTranscript = sermon?.fields["Transcription URL"] || "";
-  if (prevTranscript && !transcriptDirty && transcriptUrl !== prevTranscript) {
-    setTranscriptUrl(prevTranscript);
-  }
-
-  const updateSermonMutation = useMutation({
-    mutationFn: async (fields: Record<string, any>) => {
-      const res = await apiRequest("PATCH", `/api/sermons/${sermon!.id}`, fields);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sermons", sermon!.id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/sermons/search", broadcastDate] });
-      setTranscriptDirty(false);
-      toast({ title: "Saved", description: "Sermon transcript updated." });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  if (!sermon) return null;
-
+function SermonReference({ sermon }: { sermon: Sermon }) {
   const platform = sermon.fields["Platform"];
   const isSunday = platform === "Sunday";
 
@@ -241,42 +178,6 @@ function SermonReference({
           </Button>
         </Link>
       </div>
-
-      {/* Editable Transcript URL — writes to sermon */}
-      <div className="space-y-1">
-        <Label className="text-xs text-muted-foreground">Transcript URL</Label>
-        <div className="flex gap-2">
-          <Input
-            type="url"
-            placeholder="Enter transcript URL..."
-            value={transcriptUrl}
-            onChange={(e) => {
-              setTranscriptUrl(e.target.value);
-              setTranscriptDirty(true);
-            }}
-            className="text-xs h-8 bg-background"
-          />
-          {transcriptUrl && (
-            <a href={transcriptUrl} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Button>
-            </a>
-          )}
-          {transcriptDirty && (
-            <Button
-              onClick={() => updateSermonMutation.mutate({ "Transcription URL": transcriptUrl })}
-              disabled={updateSermonMutation.isPending}
-              size="sm"
-              className="h-8 px-2 text-xs gap-1 shrink-0"
-            >
-              <Save className="w-3 h-3" />
-              {updateSermonMutation.isPending ? "..." : "Save"}
-            </Button>
-          )}
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {cards.map((card) => (
           <SermonReferenceCard
@@ -295,7 +196,42 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [editFields, setEditFields] = useState(edit.fields);
   const [hasChanges, setHasChanges] = useState(false);
+  const [transcriptUrl, setTranscriptUrl] = useState("");
+  const [transcriptDirty, setTranscriptDirty] = useState(false);
   const { toast } = useToast();
+
+  // Fetch linked sermon by broadcast date
+  const broadcastDate = edit.fields["Broadcast Date"];
+  const { data: sermonSearch } = useQuery<{ records: Sermon[] }>({
+    queryKey: ["/api/sermons/search", broadcastDate],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/sermons/search?date=${broadcastDate}`);
+      return res.json();
+    },
+    enabled: !!broadcastDate && expanded,
+  });
+  const linkedSermon = sermonSearch?.records?.[0] || null;
+
+  // Sync transcript from sermon
+  const sermonTranscript = linkedSermon?.fields["Transcription URL"] || "";
+  if (sermonTranscript && !transcriptDirty && transcriptUrl !== sermonTranscript) {
+    setTranscriptUrl(sermonTranscript);
+  }
+
+  const updateSermonMutation = useMutation({
+    mutationFn: async (fields: Record<string, any>) => {
+      const res = await apiRequest("PATCH", `/api/sermons/${linkedSermon!.id}`, fields);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons/search", broadcastDate] });
+      setTranscriptDirty(false);
+      toast({ title: "Saved", description: "Transcript updated." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   const updateMutation = useMutation({
     mutationFn: async (fields: Record<string, any>) => {
@@ -459,6 +395,37 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
               />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">
+                Transcript URL
+                {linkedSermon && (
+                  <span className="text-[10px] text-muted-foreground/60 ml-1">(sermon)</span>
+                )}
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  placeholder="Enter transcript URL..."
+                  value={transcriptUrl}
+                  onChange={(e) => {
+                    setTranscriptUrl(e.target.value);
+                    setTranscriptDirty(true);
+                  }}
+                  className="text-xs h-8 bg-background"
+                />
+                {transcriptDirty && linkedSermon && (
+                  <Button
+                    onClick={() => updateSermonMutation.mutate({ "Transcription URL": transcriptUrl })}
+                    disabled={updateSermonMutation.isPending}
+                    size="sm"
+                    className="h-8 px-2 text-xs gap-1 shrink-0"
+                  >
+                    <Save className="w-3 h-3" />
+                    {updateSermonMutation.isPending ? "..." : "Save"}
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Date Completed</Label>
               <Input
                 type="date"
@@ -536,10 +503,8 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
             )}
           </div>
 
-          {edit.fields["Broadcast Date"] && (
-            <SermonReference
-              broadcastDate={edit.fields["Broadcast Date"]}
-            />
+          {linkedSermon && (
+            <SermonReference sermon={linkedSermon} />
           )}
         </div>
       )}
