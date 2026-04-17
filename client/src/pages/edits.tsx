@@ -378,30 +378,57 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Video URL</Label>
-              <Input
-                type="url"
-                value={editFields["Video URL"] || ""}
-                onChange={(e) => handleFieldChange("Video URL", e.target.value)}
-                className="text-xs h-8 bg-background"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  value={editFields["Video URL"] || ""}
+                  onChange={(e) => handleFieldChange("Video URL", e.target.value)}
+                  className="text-xs h-8 bg-background"
+                />
+                {editFields["Video URL"] && (
+                  <a href={editFields["Video URL"]} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                )}
+              </div>
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">XML (Zipped)</Label>
-              <Input
-                type="url"
-                value={editFields["XML"] || ""}
-                onChange={(e) => handleFieldChange("XML", e.target.value)}
-                className="text-xs h-8 bg-background"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  value={editFields["XML"] || ""}
+                  onChange={(e) => handleFieldChange("XML", e.target.value)}
+                  className="text-xs h-8 bg-background"
+                />
+                {editFields["XML"] && (
+                  <a href={editFields["XML"]} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                )}
+              </div>
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Vertical URL</Label>
-              <Input
-                type="url"
-                value={editFields["Vertical"] || ""}
-                onChange={(e) => handleFieldChange("Vertical", e.target.value)}
-                className="text-xs h-8 bg-background"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  value={editFields["Vertical"] || ""}
+                  onChange={(e) => handleFieldChange("Vertical", e.target.value)}
+                  className="text-xs h-8 bg-background"
+                />
+                {editFields["Vertical"] && (
+                  <a href={editFields["Vertical"]} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                )}
+              </div>
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
@@ -421,6 +448,13 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
                   }}
                   className="text-xs h-8 bg-background"
                 />
+                {transcriptUrl && (
+                  <a href={transcriptUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                )}
                 {transcriptDirty && linkedSermon && (
                   <Button
                     onClick={() => updateSermonMutation.mutate({ "Transcription URL": transcriptUrl })}
@@ -832,12 +866,21 @@ function NewEditDialog() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Video URL</Label>
-              <Input
-                type="url"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                className="text-sm"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  className="text-sm"
+                />
+                {videoUrl && (
+                  <a href={videoUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="ghost" size="sm" className="h-9 px-2 shrink-0">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                )}
+              </div>
             </div>
             <Button
               onClick={handleCreate}
