@@ -108,10 +108,12 @@ export default function SermonDetail() {
     enabled: !!serviceDate,
   });
 
+  // Re-check the date client-side too — don't trust the endpoint to have
+  // filtered (the Netlify function and Express dev server are separate code).
   const linkedEdits = dateEdits?.filter((e) => {
     const link = e.fields["Sermon Link"];
     if (link && link.length > 0) return link.includes(params.id);
-    return true; // same broadcast date, no explicit link
+    return e.fields["Broadcast Date"] === serviceDate;
   });
 
   // A finished recap edit can supply the sermon's Recap URL directly

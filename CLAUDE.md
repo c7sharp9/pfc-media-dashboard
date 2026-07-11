@@ -13,7 +13,7 @@ Internal dashboard for managing People of Faith Church (PFC) media operations --
 - **Backend:** Express 5, TypeScript (tsx runner)
 - **Data:** Airtable API as primary data store (sermons, edits, workflow steps). Drizzle ORM + SQLite configured but currently unused in routes -- all CRUD goes through Airtable REST API.
 - **Validation:** Zod schemas in `shared/schema.ts`
-- **Deployment:** Netlify Functions (`netlify/functions/api.mts`) wraps the Express API for serverless; Vite builds the SPA to `dist/public`
+- **Deployment:** Netlify Functions (`netlify/functions/api.mts`) reimplements the API for serverless -- it does NOT import `server/routes.ts`; Vite builds the SPA to `dist/public`
 
 ## Local Development
 
@@ -52,7 +52,7 @@ shared/
   schema.ts       # TypeScript interfaces + Zod schemas (Sermon, Edit, WorkflowStep)
 netlify/
   functions/
-    api.mts       # Netlify Function wrapper for Express
+    api.mts       # Netlify Function — separate reimplementation of the API routes
 ```
 
 ## Data Model
@@ -72,8 +72,9 @@ Configured in `vite.config.ts`:
 
 ## Gotchas
 
+- **The API exists twice.** `server/routes.ts` serves local dev; `netlify/functions/api.mts` serves production. They are independent implementations of the same endpoints -- any route change MUST be made in both files or production silently diverges from local dev (this has caused real bugs).
 - **Airtable is the database.** There is no local SQLite in production. Drizzle config exists but routes bypass it entirely -- all reads/writes go to Airtable REST API.
 - **Sample data fallback:** If `AIRTABLE_PAT` is missing or Airtable is unreachable, the server silently falls back to in-memory sample data. This makes local dev possible without credentials but can mask connection issues.
 - **Netlify redirects:** `/api/*` is proxied to the serverless function. The SPA fallback catches everything else. Order matters in `netlify.toml`.
 - **Express 5:** This project uses Express v5, which has breaking changes from v4 (e.g., path matching, error handling).
-- **Airtable IDs are hardcoded** in `server/routes.ts` (base ID, table IDs). Changing the Airtable base requires updating these constants.
+- **Airtable IDs are hardcoded** in both `server/routes.ts` and `netlify/functions/api.mts` (base ID, table IDs). Changing the Airtable base requires updating the constants in both files.

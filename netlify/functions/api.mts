@@ -90,6 +90,25 @@ export default async (req: Request, context: Context) => {
       return json({ records: data.records || [] });
     }
 
+    // GET /sermons/by-dates?dates=a,b,c — batch lookup for edits-page group headers
+    if (path === "/sermons/by-dates" && req.method === "GET") {
+      const datesParam = url.searchParams.get("dates") || "";
+      const dates = datesParam
+        .split(",")
+        .map((d) => d.trim())
+        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .slice(0, 60);
+      if (dates.length === 0) {
+        return json({ records: [] });
+      }
+      const formula = `OR(${dates.map((d) => `DATESTR({Service})='${d}'`).join(",")})`;
+      const records = await fetchAllRecords(
+        SERMON_TABLE,
+        `filterByFormula=${encodeURIComponent(formula)}`
+      );
+      return json({ records });
+    }
+
     // GET /sermons/:id
     const sermonMatch = path.match(/^\/sermons\/(.+)$/);
     if (sermonMatch && req.method === "GET") {
@@ -121,9 +140,13 @@ export default async (req: Request, context: Context) => {
 
     // ---- EDITS ----
 
-    // GET /edits
+    // GET /edits (optionally ?date=YYYY-MM-DD to fetch one service's edits)
     if (path === "/edits" && req.method === "GET") {
-      const params = "sort%5B0%5D%5Bfield%5D=Broadcast%20Date&sort%5B0%5D%5Bdirection%5D=desc";
+      const date = url.searchParams.get("date");
+      let params = "sort%5B0%5D%5Bfield%5D=Broadcast%20Date&sort%5B0%5D%5Bdirection%5D=desc";
+      if (date) {
+        params += `&filterByFormula=${encodeURIComponent(`DATESTR({Broadcast Date})='${date}'`)}`;
+      }
       const records = await fetchAllRecords(EDITS_TABLE, params);
       return json(records);
     }
@@ -159,10 +182,14 @@ export default async (req: Request, context: Context) => {
 
     // DELETE /edits/:id
     if (editMatch && req.method === "DELETE") {
-      await fetch(
+      const delRes = await fetch(
         `https://api.airtable.com/v0/${BASE_ID}/${EDITS_TABLE}/${editMatch[1]}`,
         { method: "DELETE", headers }
       );
+      if (!delRes.ok) {
+        const text = await delRes.text();
+        throw new Error(`Airtable error ${delRes.status}: ${text}`);
+      }
       return json({ success: true });
     }
 
