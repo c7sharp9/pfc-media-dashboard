@@ -161,6 +161,7 @@ const SAMPLE_EDITS = [
       "Editor Name": "Marcus",
       "Date Completed": "2026-03-17",
       "Video URL": "https://drive.google.com/recap-video",
+      "Sermon Link": ["rec_sample_5"],
     },
   },
   {
@@ -172,6 +173,7 @@ const SAMPLE_EDITS = [
       "Type": ["Clip"],
       "Editor Name": "Danielle",
       "Video URL": "https://drive.google.com/clip-video",
+      "Sermon Link": ["rec_sample_5"],
     },
   },
   {
@@ -276,6 +278,32 @@ export async function registerRoutes(
     }
   });
 
+  // Batch lookup: sermons for a set of service dates (for edits page group headers)
+  app.get("/api/sermons/by-dates", async (req, res) => {
+    try {
+      const datesParam = (req.query.dates as string) || "";
+      const dates = datesParam
+        .split(",")
+        .map((d) => d.trim())
+        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .slice(0, 60);
+      if (dates.length === 0) {
+        return res.json({ records: [] });
+      }
+      if (useSampleData) {
+        const found = SAMPLE_SERMONS.filter((s) => dates.includes(s.fields["Service"]));
+        return res.json({ records: found });
+      }
+      const formula = `OR(${dates.map((d) => `DATESTR({Service})='${d}'`).join(",")})`;
+      const url = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}?filterByFormula=${encodeURIComponent(formula)}`;
+      const data = await airtableFetch(url);
+      res.json({ records: data.records || [] });
+    } catch (err: any) {
+      console.error("Error fetching sermons by dates:", err.message);
+      res.json({ records: [] });
+    }
+  });
+
   app.get("/api/sermons/:id", async (req, res) => {
     try {
       if (useSampleData) {
@@ -334,12 +362,19 @@ export async function registerRoutes(
 
   // ---- EDITS ----
 
-  app.get("/api/edits", async (_req, res) => {
+  app.get("/api/edits", async (req, res) => {
     try {
+      const date = req.query.date as string | undefined;
       if (useSampleData) {
-        return res.json(SAMPLE_EDITS);
+        const records = date
+          ? SAMPLE_EDITS.filter((e) => e.fields["Broadcast Date"] === date)
+          : SAMPLE_EDITS;
+        return res.json(records);
       }
-      const params = "sort%5B0%5D%5Bfield%5D=Broadcast%20Date&sort%5B0%5D%5Bdirection%5D=desc";
+      let params = "sort%5B0%5D%5Bfield%5D=Broadcast%20Date&sort%5B0%5D%5Bdirection%5D=desc";
+      if (date) {
+        params += `&filterByFormula=${encodeURIComponent(`DATESTR({Broadcast Date})='${date}'`)}`;
+      }
       const records = await fetchAllRecords(EDITS_TABLE, params);
       res.json(records);
     } catch (err: any) {
@@ -409,7 +444,11 @@ export async function registerRoutes(
         return res.json({ success: true });
       }
       const url = `https://api.airtable.com/v0/${BASE_ID}/${EDITS_TABLE}/${req.params.id}`;
-      await fetch(url, { method: "DELETE", headers });
+      const delRes = await fetch(url, { method: "DELETE", headers });
+      if (!delRes.ok) {
+        const text = await delRes.text();
+        throw new Error(`Airtable error ${delRes.status}: ${text}`);
+      }
       res.json({ success: true });
     } catch (err: any) {
       console.error("Error deleting edit:", err.message);
