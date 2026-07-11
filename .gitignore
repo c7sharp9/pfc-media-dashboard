@@ -7,3 +7,6 @@ vite.config.ts.*
 *.db
 *.db-shm
 *.db-wal
+
+# Local Netlify folder
+.netlify
