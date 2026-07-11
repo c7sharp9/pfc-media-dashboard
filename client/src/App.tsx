@@ -26,6 +26,7 @@ function AppRouter() {
       <Switch>
         <Route path="/" component={SermonsList} />
         <Route path="/edits" component={EditsPage} />
+        <Route path="/edits/:id" component={EditsPage} />
         <Route path="/workflow" component={WorkflowPage} />
         <Route path="/sermon/:id" component={SermonDetail} />
         <Route component={NotFound} />

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,29 +18,22 @@ import {
   EyeOff,
   Globe,
   Check,
-  ExternalLink,
+  ChevronRight,
   Save,
-  Plus,
   Headphones,
   ScissorsLineDashed,
   Link2,
   Share2,
+  Wand2,
 } from "lucide-react";
 import { SiFacebook } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatLongDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { UrlField, CheckboxField, OpenLinkButton } from "@/components/fields";
+import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
+import NewEditDialog from "@/components/new-edit-dialog";
 import type { Sermon, Edit } from "@shared/schema";
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 interface WorkflowStepProps {
   title: string;
@@ -89,66 +81,6 @@ function WorkflowStep({ title, icon, isComplete, children, stepNumber }: Workflo
   );
 }
 
-function UrlField({
-  label,
-  value,
-  fieldName,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  fieldName: string;
-  onChange: (field: string, value: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <div className="flex gap-2">
-        <Input
-          type="url"
-          placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
-          value={value || ""}
-          onChange={(e) => onChange(fieldName, e.target.value)}
-          className="text-xs h-8 bg-background"
-          data-testid={`input-${fieldName.replace(/\s+/g, '-').toLowerCase()}`}
-        />
-        {value && (
-          <a href={value} target="_blank" rel="noopener noreferrer">
-            <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Button>
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CheckboxField({
-  label,
-  checked,
-  fieldName,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  fieldName: string;
-  onChange: (field: string, value: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Checkbox
-        checked={checked}
-        onCheckedChange={(v) => onChange(fieldName, !!v)}
-        data-testid={`checkbox-${fieldName.replace(/\s+/g, '-').toLowerCase()}`}
-      />
-      <Label className="text-xs text-muted-foreground cursor-pointer">{label}</Label>
-    </div>
-  );
-}
-
 export default function SermonDetail() {
   const params = useParams() as { id: string };
   const { toast } = useToast();
@@ -164,15 +96,31 @@ export default function SermonDetail() {
     },
   });
 
-  const { data: allEdits } = useQuery<Edit[]>({
-    queryKey: ["/api/edits"],
+  // Edits for this sermon: fetch only this service date's edits, then prefer
+  // the real Sermon Link record ID (date match is the fallback for older edits).
+  const serviceDate = sermon?.fields["Service"];
+  const { data: dateEdits } = useQuery<Edit[]>({
+    queryKey: ["/api/edits", { date: serviceDate }],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/edits?date=${serviceDate}`);
+      return res.json();
+    },
+    enabled: !!serviceDate,
   });
 
-  // Edits linked to this sermon by matching broadcast date
-  const linkedEdits = allEdits?.filter((e) => {
-    if (!sermon) return false;
-    return e.fields["Broadcast Date"] === sermon.fields["Service"];
+  const linkedEdits = dateEdits?.filter((e) => {
+    const link = e.fields["Sermon Link"];
+    if (link && link.length > 0) return link.includes(params.id);
+    return true; // same broadcast date, no explicit link
   });
+
+  // A finished recap edit can supply the sermon's Recap URL directly
+  const completedRecap = linkedEdits?.find(
+    (e) =>
+      e.fields["Type"]?.includes("Recap") &&
+      e.fields["Status"] === "Completed" &&
+      e.fields["Video URL"]
+  );
 
   useEffect(() => {
     if (sermon) {
@@ -264,18 +212,9 @@ export default function SermonDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs text-muted-foreground">
-              {formatDate(fields["Service"])}
+              {formatLongDate(fields["Service"])}
             </span>
-            <Badge
-              variant="secondary"
-              className={`text-xs px-1.5 py-0 ${
-                isSunday
-                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-                  : "bg-amber-500/15 text-amber-400 border-amber-500/20"
-              }`}
-            >
-              {platform}
-            </Badge>
+            <PlatformBadge platform={platform} />
           </div>
           <input
             type="text"
@@ -630,13 +569,90 @@ export default function SermonDetail() {
           </Card>
         )}
 
+      </div>
+
+      {/* Edits Section */}
+      <Separator className="my-3" />
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Edits
+        </h2>
+        <div className="flex items-center gap-1.5">
+          <NewEditDialog sermon={sermon} />
+          <Link href="/edits">
+            <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 px-2" data-testid="button-view-all-edits">
+              View All <ChevronRight className="w-3 h-3" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+      {linkedEdits && linkedEdits.length > 0 ? (
+        <div className="space-y-1.5">
+          {linkedEdits.map((edit) => (
+            <Link key={edit.id} href={`/edits/${edit.id}`} className="block">
+              <Card className="p-2.5 flex items-center gap-2.5 cursor-pointer hover:bg-accent/30 transition-colors group">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">
+                    {edit.fields["Title"] || "Untitled Edit"}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {edit.fields["Type"]?.map((t) => (
+                      <TypeBadge key={t} type={t} className="text-[10px] leading-tight" />
+                    ))}
+                    <StatusBadge
+                      status={edit.fields["Status"]}
+                      className="text-[10px] leading-tight"
+                    />
+                    {edit.fields["Editor Name"] && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {edit.fields["Editor Name"]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {edit.fields["Video URL"] && (
+                  <OpenLinkButton
+                    url={edit.fields["Video URL"]}
+                    label="Open video"
+                    className="h-6 px-1.5"
+                  />
+                )}
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground opacity-40 group-hover:opacity-100 transition-opacity shrink-0" />
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          No edits linked to this service yet.
+        </p>
+      )}
+
+      {/* Recap & Clips live with the edits they come from */}
+      <div className="mt-3 space-y-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <UrlField
-            label="Recap URL"
-            value={fields["Recap URL"] || ""}
-            fieldName="Recap URL"
-            onChange={handleFieldChange}
-          />
+          <div className="space-y-1">
+            <UrlField
+              label="Recap URL"
+              value={fields["Recap URL"] || ""}
+              fieldName="Recap URL"
+              onChange={handleFieldChange}
+            />
+            {completedRecap && !fields["Recap URL"] && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                onClick={() =>
+                  handleFieldChange("Recap URL", completedRecap.fields["Video URL"])
+                }
+                data-testid="button-use-recap-edit-url"
+              >
+                <Wand2 className="w-3 h-3" />
+                Use "{completedRecap.fields["Title"] || "recap edit"}" video
+              </Button>
+            )}
+          </div>
           <div className="flex items-end pb-0.5">
             <CheckboxField
               label="Clips"
@@ -647,58 +663,6 @@ export default function SermonDetail() {
           </div>
         </div>
       </div>
-
-      {/* Edits Section */}
-      <Separator className="my-3" />
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Edits
-        </h2>
-        <Link href="/edits">
-          <Button variant="ghost" size="sm" className="text-xs gap-1 h-6 px-2" data-testid="button-view-all-edits">
-            View All <ExternalLink className="w-3 h-3" />
-          </Button>
-        </Link>
-      </div>
-      {linkedEdits && linkedEdits.length > 0 ? (
-        <div className="space-y-1.5">
-          {linkedEdits.map((edit) => (
-            <Card key={edit.id} className="p-2.5 flex items-center gap-2.5">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground truncate">
-                  {edit.fields["Title"] || "Untitled Edit"}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  {edit.fields["Type"]?.map((t) => (
-                    <Badge key={t} variant="secondary" className="text-[10px] leading-tight px-1.5 py-0">
-                      {t}
-                    </Badge>
-                  ))}
-                  {edit.fields["Status"] && (
-                    <Badge
-                      variant="secondary"
-                      className={`text-[10px] leading-tight px-1.5 py-0 ${getEditStatusColor(edit.fields["Status"])}`}
-                    >
-                      {edit.fields["Status"]}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              {edit.fields["Video URL"] && (
-                <a href={edit.fields["Video URL"]} target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="sm" className="h-6 px-1.5">
-                    <ExternalLink className="w-3 h-3" />
-                  </Button>
-                </a>
-              )}
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          No edits linked to this service date.
-        </p>
-      )}
       </div>
       </div>{/* close grid */}
 
@@ -718,19 +682,4 @@ export default function SermonDetail() {
       )}
     </div>
   );
-}
-
-function getEditStatusColor(status: string): string {
-  switch (status) {
-    case "In Progress":
-      return "bg-blue-500/15 text-blue-400 border-blue-500/20";
-    case "Ready for Review":
-      return "bg-yellow-500/15 text-yellow-400 border-yellow-500/20";
-    case "Revision Needed":
-      return "bg-orange-500/15 text-orange-400 border-orange-500/20";
-    case "Completed":
-      return "bg-emerald-500/15 text-emerald-400 border-emerald-500/20";
-    default:
-      return "";
-  }
 }

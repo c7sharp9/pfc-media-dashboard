@@ -1,6 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,13 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -25,67 +17,29 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Plus,
-  ExternalLink,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Save,
   Trash2,
-  ArrowLeft,
-  Check,
   Upload,
   Scissors,
   Headphones,
   FileText,
   Youtube,
   Globe,
-  Loader2,
-  AlertCircle,
+  ExternalLink,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useParams } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatShortDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { OpenLinkButton } from "@/components/fields";
+import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
+import NewEditDialog from "@/components/new-edit-dialog";
 import type { Edit, Sermon } from "@shared/schema";
 
-function formatDate(dateStr?: string) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function getStatusColor(status?: string): string {
-  switch (status) {
-    case "In Progress":
-      return "bg-blue-500/15 text-blue-400 border-blue-500/20";
-    case "Ready for Review":
-      return "bg-yellow-500/15 text-yellow-400 border-yellow-500/20";
-    case "Revision Needed":
-      return "bg-orange-500/15 text-orange-400 border-orange-500/20";
-    case "Completed":
-      return "bg-emerald-500/15 text-emerald-400 border-emerald-500/20";
-    default:
-      return "";
-  }
-}
-
-function getTypeColor(type: string): string {
-  switch (type) {
-    case "Recap":
-      return "bg-purple-500/15 text-purple-400 border-purple-500/20";
-    case "Clip":
-      return "bg-cyan-500/15 text-cyan-400 border-cyan-500/20";
-    case "Sizzle":
-      return "bg-pink-500/15 text-pink-400 border-pink-500/20";
-    default:
-      return "";
-  }
-}
-
-// Read-only card showing a sermon URL field with icon
+// Read-only card showing a sermon URL field. The whole card is the link.
 function SermonReferenceCard({
   icon,
   label,
@@ -95,35 +49,35 @@ function SermonReferenceCard({
   label: string;
   url?: string;
 }) {
-  return (
-    <Card className="p-3 border border-border bg-muted/30">
-      <div className="flex items-start gap-2.5">
-        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-muted text-muted-foreground">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <span className="text-xs font-medium text-foreground">{label}</span>
-          {url ? (
-            <div className="flex items-center gap-1.5 mt-1">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-400 hover:text-blue-300 truncate underline underline-offset-2"
-              >
-                {url.length > 50 ? url.slice(0, 50) + "..." : url}
-              </a>
-              <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                <ExternalLink className="w-3 h-3 text-muted-foreground" />
-              </a>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground mt-1">Not set</p>
-          )}
-        </div>
+  const inner = (
+    <div className="flex items-center gap-2.5">
+      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-muted text-muted-foreground">
+        {icon}
       </div>
-    </Card>
+      <div className="flex-1 min-w-0">
+        <span className="text-xs font-medium text-foreground">{label}</span>
+        {url ? (
+          <p className="text-xs text-blue-400 truncate mt-0.5">
+            {url.length > 50 ? url.slice(0, 50) + "..." : url}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground mt-0.5">Not set</p>
+        )}
+      </div>
+      {url && <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+    </div>
   );
+
+  if (url) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <Card className="p-3 border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
+          {inner}
+        </Card>
+      </a>
+    );
+  }
+  return <Card className="p-3 border border-border bg-muted/30">{inner}</Card>;
 }
 
 // Sermon reference section shown in expanded edit cards
@@ -135,14 +89,15 @@ function SermonReference({ sermon }: { sermon: Sermon }) {
     { icon: <Upload className="w-3 h-3" />, label: "Full Service", url: sermon.fields["Video URL"] },
     { icon: <Scissors className="w-3 h-3" />, label: "Trimmed Media", url: sermon.fields["Trimmed Video URL"] },
     { icon: <Headphones className="w-3 h-3" />, label: "Audio", url: sermon.fields["Audio URL"] },
+    { icon: <FileText className="w-3 h-3" />, label: "Transcription", url: sermon.fields["Transcription URL"] },
     { icon: <Youtube className="w-3 h-3" />, label: "YouTube New Video", url: sermon.fields["YouTube Trimmed URL"] },
-    { icon: <Youtube className="w-3 h-3" />, label: "YouTube Full Service", url: sermon.fields["YouTube Full Service URL"] },
     { icon: <Globe className="w-3 h-3" />, label: "Website URL", url: sermon.fields["Sermon URL"] },
   ];
 
   const wednesdayCards = [
     { icon: <Upload className="w-3 h-3" />, label: "Clean Edit", url: sermon.fields["Video URL"] },
     { icon: <Headphones className="w-3 h-3" />, label: "Audio", url: sermon.fields["Audio URL"] },
+    { icon: <FileText className="w-3 h-3" />, label: "Transcription", url: sermon.fields["Transcription URL"] },
     { icon: <Youtube className="w-3 h-3" />, label: "YouTube Link", url: sermon.fields["Wednesday YouTube Link"] },
     { icon: <Globe className="w-3 h-3" />, label: "Website URL", url: sermon.fields["Sermon URL"] },
   ];
@@ -161,20 +116,11 @@ function SermonReference({ sermon }: { sermon: Sermon }) {
             — {sermon.fields["Title"]}
           </span>
         )}
-        <Badge
-          variant="secondary"
-          className={`text-[10px] leading-tight px-1.5 py-0 ${
-            isSunday
-              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-              : "bg-amber-500/15 text-amber-400 border-amber-500/20"
-          }`}
-        >
-          {platform}
-        </Badge>
+        <PlatformBadge platform={platform} className="text-[10px] leading-tight" />
         <Link href={`/sermon/${sermon.id}`}>
           <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground ml-auto">
-            <ExternalLink className="w-3 h-3" />
             Open Sermon
+            <ChevronRight className="w-3 h-3" />
           </Button>
         </Link>
       </div>
@@ -192,55 +138,76 @@ function SermonReference({ sermon }: { sermon: Sermon }) {
   );
 }
 
-function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
-  const [expanded, setExpanded] = useState(false);
+function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(initialExpanded);
   const [editFields, setEditFields] = useState(edit.fields);
   const [hasChanges, setHasChanges] = useState(false);
   const [transcriptUrl, setTranscriptUrl] = useState("");
   const [transcriptDirty, setTranscriptDirty] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Fetch linked sermon by broadcast date
+  // Scroll into view when opened directly via /edits/:id
+  useEffect(() => {
+    if (initialExpanded && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [initialExpanded]);
+
+  // Resolve the linked sermon: prefer the real Sermon Link record ID,
+  // fall back to broadcast-date matching for older edits.
+  const sermonLinkId = edit.fields["Sermon Link"]?.[0];
   const broadcastDate = edit.fields["Broadcast Date"];
+
+  const { data: sermonById } = useQuery<Sermon>({
+    queryKey: ["/api/sermons", sermonLinkId],
+    enabled: expanded && !!sermonLinkId,
+  });
+
   const { data: sermonSearch } = useQuery<{ records: Sermon[] }>({
     queryKey: ["/api/sermons/search", broadcastDate],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/sermons/search?date=${broadcastDate}`);
       return res.json();
     },
-    enabled: !!broadcastDate && expanded,
+    enabled: expanded && !sermonLinkId && !!broadcastDate,
   });
-  const linkedSermon = sermonSearch?.records?.[0] || null;
 
-  // Sync transcript from sermon
+  const linkedSermon = sermonLinkId
+    ? sermonById || null
+    : sermonSearch?.records?.[0] || null;
+
+  // The transcript lives on the sermon record; mirror it here for editing.
   const sermonTranscript = linkedSermon?.fields["Transcription URL"] || "";
-  if (sermonTranscript && !transcriptDirty && transcriptUrl !== sermonTranscript) {
-    setTranscriptUrl(sermonTranscript);
-  }
-
-  const updateSermonMutation = useMutation({
-    mutationFn: async (fields: Record<string, any>) => {
-      const res = await apiRequest("PATCH", `/api/sermons/${linkedSermon!.id}`, fields);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sermons/search", broadcastDate] });
-      setTranscriptDirty(false);
-      toast({ title: "Saved", description: "Transcript updated." });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
+  useEffect(() => {
+    if (!transcriptDirty) {
+      setTranscriptUrl(sermonTranscript);
+    }
+  }, [sermonTranscript, transcriptDirty]);
 
   const updateMutation = useMutation({
-    mutationFn: async (fields: Record<string, any>) => {
-      const res = await apiRequest("PATCH", `/api/edits/${edit.id}`, fields);
-      return res.json();
+    mutationFn: async ({
+      fields,
+      transcript,
+    }: {
+      fields: Record<string, any>;
+      transcript?: string;
+    }) => {
+      if (Object.keys(fields).length > 0) {
+        await apiRequest("PATCH", `/api/edits/${edit.id}`, fields);
+      }
+      if (transcript !== undefined && linkedSermon) {
+        await apiRequest("PATCH", `/api/sermons/${linkedSermon.id}`, {
+          "Transcription URL": transcript,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/edits"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons/search"] });
       setHasChanges(false);
+      setTranscriptDirty(false);
       toast({ title: "Saved", description: "Edit updated." });
     },
     onError: (err: Error) => {
@@ -256,6 +223,9 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["/api/edits"] });
       toast({ title: "Deleted", description: "Edit removed." });
     },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
   });
 
   const handleFieldChange = (field: string, value: any) => {
@@ -270,13 +240,16 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
         changed[key] = val;
       }
     }
-    if (Object.keys(changed).length > 0) {
-      updateMutation.mutate(changed);
-    }
+    updateMutation.mutate({
+      fields: changed,
+      transcript: transcriptDirty ? transcriptUrl : undefined,
+    });
   };
 
+  const showSave = hasChanges || (transcriptDirty && !!linkedSermon);
+
   return (
-    <Card className="overflow-hidden">
+    <Card ref={cardRef} className="overflow-hidden scroll-mt-4">
       <div
         className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-accent/30 transition-colors"
         onClick={() => setExpanded(!expanded)}
@@ -284,19 +257,10 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground">
-              {formatDate(editFields["Broadcast Date"])}
-            </span>
             {editFields["Type"]?.map((t) => (
-              <Badge key={t} variant="secondary" className={`text-xs ${getTypeColor(t)}`}>
-                {t}
-              </Badge>
+              <TypeBadge key={t} type={t} />
             ))}
-            {editFields["Status"] && (
-              <Badge variant="secondary" className={`text-xs ${getStatusColor(editFields["Status"])}`}>
-                {editFields["Status"]}
-              </Badge>
-            )}
+            <StatusBadge status={editFields["Status"]} />
           </div>
           <p className="text-sm font-medium text-foreground truncate mt-0.5">
             {editFields["Title"] || "Untitled Edit"}
@@ -304,22 +268,17 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
             {editFields["Editor Name"] && <span>{editFields["Editor Name"]}</span>}
             {editFields["Date Completed"] && (
-              <span>Completed: {formatDate(editFields["Date Completed"])}</span>
+              <span>Completed: {formatShortDate(editFields["Date Completed"])}</span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {editFields["Video URL"] && (
-            <a
-              href={editFields["Video URL"]}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Button variant="ghost" size="sm" className="h-7 px-2">
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Button>
-            </a>
+            <OpenLinkButton
+              url={editFields["Video URL"]}
+              label="Open video"
+              className="h-7 px-2"
+            />
           )}
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -386,11 +345,7 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
                   className="text-xs h-8 bg-background"
                 />
                 {editFields["Video URL"] && (
-                  <a href={editFields["Video URL"]} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
+                  <OpenLinkButton url={editFields["Video URL"]} label="Open video URL" />
                 )}
               </div>
             </div>
@@ -404,11 +359,7 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
                   className="text-xs h-8 bg-background"
                 />
                 {editFields["XML"] && (
-                  <a href={editFields["XML"]} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
+                  <OpenLinkButton url={editFields["XML"]} label="Open XML" />
                 )}
               </div>
             </div>
@@ -422,26 +373,27 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
                   className="text-xs h-8 bg-background"
                 />
                 {editFields["Vertical"] && (
-                  <a href={editFields["Vertical"]} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
+                  <OpenLinkButton url={editFields["Vertical"]} label="Open vertical URL" />
                 )}
               </div>
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
                 Transcript URL
-                {linkedSermon && (
-                  <span className="text-[10px] text-muted-foreground/60 ml-1">(sermon)</span>
-                )}
+                <span className="text-[10px] text-muted-foreground/60 ml-1">
+                  {linkedSermon ? "(saved to sermon)" : "(no linked sermon)"}
+                </span>
               </Label>
               <div className="flex gap-2">
                 <Input
                   type="url"
-                  placeholder="Enter transcript URL..."
+                  placeholder={
+                    linkedSermon
+                      ? "Enter transcript URL..."
+                      : "Link a sermon to set a transcript"
+                  }
                   value={transcriptUrl}
+                  disabled={!linkedSermon}
                   onChange={(e) => {
                     setTranscriptUrl(e.target.value);
                     setTranscriptDirty(true);
@@ -449,22 +401,7 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
                   className="text-xs h-8 bg-background"
                 />
                 {transcriptUrl && (
-                  <a href={transcriptUrl} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="sm" className="h-8 px-2 shrink-0">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
-                )}
-                {transcriptDirty && linkedSermon && (
-                  <Button
-                    onClick={() => updateSermonMutation.mutate({ "Transcription URL": transcriptUrl })}
-                    disabled={updateSermonMutation.isPending}
-                    size="sm"
-                    className="h-8 px-2 text-xs gap-1 shrink-0"
-                  >
-                    <Save className="w-3 h-3" />
-                    {updateSermonMutation.isPending ? "..." : "Save"}
-                  </Button>
+                  <OpenLinkButton url={transcriptUrl} label="Open transcript" />
                 )}
               </div>
             </div>
@@ -532,7 +469,7 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
               <Trash2 className="w-3 h-3" />
               Delete
             </Button>
-            {hasChanges && (
+            {showSave && (
               <Button
                 onClick={handleSave}
                 disabled={updateMutation.isPending}
@@ -546,358 +483,43 @@ function EditCard({ edit, onRefresh }: { edit: Edit; onRefresh: () => void }) {
             )}
           </div>
 
-          {linkedSermon && (
-            <SermonReference sermon={linkedSermon} />
-          )}
+          {linkedSermon && <SermonReference sermon={linkedSermon} />}
         </div>
       )}
     </Card>
   );
 }
 
-function NewEditDialog() {
-  const [open, setOpen] = useState(false);
-  const [step, setStep] = useState(1);
-  const [platform, setPlatform] = useState<string>("");
-  const [broadcastDate, setBroadcastDate] = useState("");
-  const [linkedSermon, setLinkedSermon] = useState<Sermon | null>(null);
-  const [title, setTitle] = useState("");
-  const [editorName, setEditorName] = useState("");
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [status, setStatus] = useState("In Progress");
-  const [videoUrl, setVideoUrl] = useState("");
-  const { toast } = useToast();
-
-  // Search for sermon when date + platform are set
-  const {
-    data: searchResult,
-    isFetching: isSearching,
-  } = useQuery<{ records: Sermon[] }>({
-    queryKey: ["/api/sermons/search", broadcastDate, platform],
-    queryFn: async () => {
-      const res = await apiRequest(
-        "GET",
-        `/api/sermons/search?date=${broadcastDate}&platform=${platform}`
-      );
-      return res.json();
-    },
-    enabled: step === 2 && !!broadcastDate && !!platform && platform !== "Other",
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: Record<string, any>) => {
-      const res = await apiRequest("POST", "/api/edits", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/edits"] });
-      resetAndClose();
-      toast({ title: "Created", description: "New edit added." });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const resetAndClose = () => {
-    setOpen(false);
-    setStep(1);
-    setPlatform("");
-    setBroadcastDate("");
-    setLinkedSermon(null);
-    setTitle("");
-    setEditorName("");
-    setSelectedTypes([]);
-    setStatus("In Progress");
-    setVideoUrl("");
-  };
-
-  const handlePlatformSelect = (p: string) => {
-    setPlatform(p);
-    setStep(2);
-  };
-
-  const handleDateContinue = () => {
-    const foundSermon = searchResult?.records?.[0] || null;
-    setLinkedSermon(foundSermon);
-    if (foundSermon?.fields["Title"]) {
-      setTitle(foundSermon.fields["Title"]);
-    }
-    setStep(3);
-  };
-
-  const handleCreate = () => {
-    const payload: Record<string, any> = {
-      Title: title,
-      "Broadcast Date": broadcastDate,
-      "Editor Name": editorName || undefined,
-      Status: status,
-      Type: selectedTypes.length > 0 ? selectedTypes : undefined,
-      "Video URL": videoUrl || undefined,
-    };
-    // Remove undefined values
-    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
-    createMutation.mutate(payload);
-  };
-
-  const foundSermon = searchResult?.records?.[0];
-
+// Header for a group of edits from the same service date
+function GroupHeader({ date, sermon }: { date: string; sermon?: Sermon }) {
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) resetAndClose();
-        else setOpen(true);
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button size="sm" className="gap-1" data-testid="button-new-edit">
-          <Plus className="w-4 h-4" />
-          New Edit
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {step > 1 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => setStep(step - 1)}
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-            )}
-            New Edit
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-1.5 pb-1">
-          {[1, 2, 3].map((s) => (
-            <div
-              key={s}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                s === step
-                  ? "bg-primary"
-                  : s < step
-                    ? "bg-emerald-500"
-                    : "bg-muted"
-              }`}
-            />
-          ))}
-        </div>
-
-        {/* Step 1: Platform */}
-        {step === 1 && (
-          <div className="space-y-3 pt-1">
-            <p className="text-xs text-muted-foreground text-center">
-              Select the service platform
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => handlePlatformSelect("Sunday")}
-                className="flex items-center justify-center px-3 py-2.5 rounded-lg border border-border hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors cursor-pointer"
-              >
-                <span className="text-xs font-medium text-emerald-400">Sunday</span>
-              </button>
-              <button
-                onClick={() => handlePlatformSelect("Wednesday")}
-                className="flex items-center justify-center px-3 py-2.5 rounded-lg border border-border hover:border-amber-500/50 hover:bg-amber-500/5 transition-colors cursor-pointer"
-              >
-                <span className="text-xs font-medium text-amber-400">Wednesday</span>
-              </button>
-              <button
-                onClick={() => handlePlatformSelect("Other")}
-                className="flex items-center justify-center px-3 py-2.5 rounded-lg border border-border hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors cursor-pointer"
-              >
-                <span className="text-xs font-medium text-muted-foreground">Other</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Broadcast Date + Sermon Lookup */}
-        {step === 2 && (
-          <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-center gap-2">
-              <Badge
-                variant="secondary"
-                className={`text-xs ${
-                  platform === "Sunday"
-                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-                    : platform === "Wednesday"
-                      ? "bg-amber-500/15 text-amber-400 border-amber-500/20"
-                      : ""
-                }`}
-              >
-                {platform}
-              </Badge>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Broadcast Date</Label>
-              <Input
-                type="date"
-                value={broadcastDate}
-                onChange={(e) => setBroadcastDate(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-
-            {/* Sermon search results */}
-            {broadcastDate && platform !== "Other" && (
-              <div className="rounded-lg border border-border p-3">
-                {isSearching ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Searching for sermon...
-                  </div>
-                ) : foundSermon ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                      <Check className="w-3 h-3 text-emerald-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">
-                        {foundSermon.fields["Title"] || "Untitled Sermon"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {formatDate(foundSermon.fields["Service"])} — {foundSermon.fields["Platform"]}
-                      </p>
-                    </div>
-                  </div>
-                ) : searchResult ? (
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <p className="text-xs text-muted-foreground">
-                      No sermon found for this date. The edit will be created without a sermon link.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            <Button
-              onClick={handleDateContinue}
-              disabled={!broadcastDate}
-              className="w-full"
-            >
-              Continue
-            </Button>
-          </div>
-        )}
-
-        {/* Step 3: Details + Create */}
-        {step === 3 && (
-          <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-center gap-2">
-              <Badge
-                variant="secondary"
-                className={`text-xs ${
-                  platform === "Sunday"
-                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-                    : platform === "Wednesday"
-                      ? "bg-amber-500/15 text-amber-400 border-amber-500/20"
-                      : ""
-                }`}
-              >
-                {platform}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {formatDate(broadcastDate)}
-              </span>
-              {linkedSermon && (
-                <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <Check className="w-2.5 h-2.5 text-emerald-400" />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Title</Label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={linkedSermon?.fields["Title"] || "Edit title"}
-                className="text-sm"
-                data-testid="input-new-edit-title"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Editor Name</Label>
-              <Input
-                value={editorName}
-                onChange={(e) => setEditorName(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Type</Label>
-              <div className="flex gap-4">
-                {["Recap", "Clip", "Sizzle"].map((t) => (
-                  <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                    <Checkbox
-                      checked={selectedTypes.includes(t)}
-                      onCheckedChange={(checked) => {
-                        setSelectedTypes((prev) =>
-                          checked ? [...prev, t] : prev.filter((x) => x !== t)
-                        );
-                      }}
-                    />
-                    <span className="text-xs">{t}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Ready for Review">Ready for Review</SelectItem>
-                  <SelectItem value="Revision Needed">Revision Needed</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Video URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  className="text-sm"
-                />
-                {videoUrl && (
-                  <a href={videoUrl} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="sm" className="h-9 px-2 shrink-0">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
-                )}
-              </div>
-            </div>
-            <Button
-              onClick={handleCreate}
-              disabled={createMutation.isPending}
-              className="w-full"
-              data-testid="button-create-edit"
-            >
-              {createMutation.isPending ? "Creating..." : "Create Edit"}
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+    <div className="flex items-center gap-2 pt-3 pb-1.5 min-w-0">
+      <span className="text-xs font-semibold text-foreground">
+        {date ? formatShortDate(date) : "No date"}
+      </span>
+      {sermon ? (
+        <>
+          <PlatformBadge platform={sermon.fields["Platform"]} className="text-[10px] leading-tight" />
+          <Link
+            href={`/sermon/${sermon.id}`}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground truncate group"
+          >
+            <span className="truncate">
+              {sermon.fields["Title"] || "Untitled sermon"}
+            </span>
+            <ChevronRight className="w-3 h-3 shrink-0 opacity-60 group-hover:opacity-100" />
+          </Link>
+        </>
+      ) : date ? (
+        <span className="text-xs text-muted-foreground/60">No linked sermon</span>
+      ) : null}
+    </div>
   );
 }
 
 export default function EditsPage() {
+  const params = useParams() as { id?: string };
+  const highlightId = params.id;
   const [filter, setFilter] = useState("all");
 
   const { data: edits, isLoading, error } = useQuery<Edit[]>({
@@ -908,6 +530,44 @@ export default function EditsPage() {
     if (filter === "all") return true;
     return e.fields["Status"] === filter;
   });
+
+  // Group edits by broadcast date, newest service first (undated last)
+  const groups = useMemo(() => {
+    const map = new Map<string, Edit[]>();
+    for (const edit of filtered || []) {
+      const date = edit.fields["Broadcast Date"] || "";
+      if (!map.has(date)) map.set(date, []);
+      map.get(date)!.push(edit);
+    }
+    return Array.from(map.entries()).sort((a, b) => {
+      if (!a[0]) return 1;
+      if (!b[0]) return -1;
+      return b[0].localeCompare(a[0]);
+    });
+  }, [filtered]);
+
+  // Batch-fetch the sermons behind the visible group dates for the headers
+  const groupDates = useMemo(
+    () => groups.map(([date]) => date).filter(Boolean),
+    [groups]
+  );
+  const datesCsv = groupDates.join(",");
+  const { data: sermonsByDates } = useQuery<{ records: Sermon[] }>({
+    queryKey: ["/api/sermons/by-dates", datesCsv],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/sermons/by-dates?dates=${datesCsv}`);
+      return res.json();
+    },
+    enabled: groupDates.length > 0,
+  });
+  const sermonByDate = useMemo(() => {
+    const map: Record<string, Sermon> = {};
+    for (const s of sermonsByDates?.records || []) {
+      const d = s.fields["Service"];
+      if (d && !map[d]) map[d] = s;
+    }
+    return map;
+  }, [sermonsByDates]);
 
   return (
     <div className="p-3 md:p-4 max-w-5xl mx-auto">
@@ -921,7 +581,7 @@ export default function EditsPage() {
         <NewEditDialog />
       </div>
 
-      <Tabs value={filter} onValueChange={setFilter} className="mb-3">
+      <Tabs value={filter} onValueChange={setFilter} className="mb-1">
         <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="all" className="text-xs" data-testid="edit-filter-all">
             All
@@ -941,25 +601,38 @@ export default function EditsPage() {
         </TabsList>
       </Tabs>
 
-      <div className="space-y-1.5">
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
+      {isLoading ? (
+        <div className="space-y-1.5 mt-2">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-14 rounded-lg" />
-          ))
-        ) : error ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            Failed to load edits. Check the connection to Airtable.
-          </div>
-        ) : filtered && filtered.length > 0 ? (
-          filtered.map((edit) => (
-            <EditCard key={edit.id} edit={edit} onRefresh={() => {}} />
-          ))
-        ) : (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            No edits found.
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="p-8 text-center text-sm text-muted-foreground">
+          Failed to load edits. Check the connection to Airtable.
+        </div>
+      ) : groups.length > 0 ? (
+        <div>
+          {groups.map(([date, groupEdits]) => (
+            <section key={date || "undated"}>
+              <GroupHeader date={date} sermon={sermonByDate[date]} />
+              <div className="space-y-1.5">
+                {groupEdits.map((edit) => (
+                  <EditCard
+                    key={edit.id}
+                    edit={edit}
+                    initialExpanded={edit.id === highlightId}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="p-8 text-center text-sm text-muted-foreground">
+          No edits found.
+        </div>
+      )}
     </div>
   );
 }
