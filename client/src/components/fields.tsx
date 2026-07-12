@@ -45,18 +45,27 @@ export function OpenLinkButton({
   );
 }
 
+// Red outline for inputs that are required but still unpopulated.
+export function requiredClass(required: boolean | undefined, value: any) {
+  return required && !value
+    ? " border-red-500/60 focus-visible:ring-red-500/40"
+    : "";
+}
+
 export function UrlField({
   label,
   value,
   fieldName,
   onChange,
   placeholder,
+  required,
 }: {
   label: string;
   value: string;
   fieldName: string;
   onChange: (field: string, value: string) => void;
   placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <div className="space-y-1">
@@ -67,7 +76,7 @@ export function UrlField({
           placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
           value={value || ""}
           onChange={(e) => onChange(fieldName, e.target.value)}
-          className="text-xs h-8 bg-background"
+          className={`text-xs h-8 bg-background${requiredClass(required, value)}`}
           data-testid={`input-${fieldName.replace(/\s+/g, "-").toLowerCase()}`}
         />
         {value && <OpenLinkButton url={value} label={`Open ${label.toLowerCase()}`} />}

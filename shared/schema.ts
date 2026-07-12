@@ -48,6 +48,7 @@ export interface Edit {
     "Editor Name"?: string;
     "Sermon Link"?: string[];
     "Title"?: string;
+    "Edit Description"?: string;
     "XML"?: string;
   };
 }
@@ -90,6 +91,7 @@ export const updateSermonSchema = z.object({
 export const createEditSchema = z.object({
   "Broadcast Date": z.string().optional(),
   "Title": z.string().optional(),
+  "Edit Description": z.string().optional(),
   "Status": z.string().optional(),
   "Type": z.array(z.string()).optional(),
   "Editor Name": z.string().optional(),

@@ -34,7 +34,7 @@ import { Link, useParams } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatShortDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { OpenLinkButton } from "@/components/fields";
+import { OpenLinkButton, requiredClass } from "@/components/fields";
 import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
 import NewEditDialog from "@/components/new-edit-dialog";
 import type { Edit, Sermon } from "@shared/schema";
@@ -134,6 +134,44 @@ function SermonReference({ sermon }: { sermon: Sermon }) {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+// Notes render as a small "+ Add" link until they have content (or are opened).
+function CollapsibleNotes({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(!!value);
+  useEffect(() => {
+    if (value) setOpen(true);
+  }, [value]);
+  if (!open) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+        onClick={() => setOpen(true)}
+      >
+        + Add {label}
+      </Button>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Textarea
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="text-xs min-h-[60px] bg-background"
+      />
     </div>
   );
 }
@@ -296,7 +334,7 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
               <Input
                 value={editFields["Title"] || ""}
                 onChange={(e) => handleFieldChange("Title", e.target.value)}
-                className="text-xs h-8 bg-background"
+                className={`text-xs h-8 bg-background${requiredClass(true, editFields["Title"])}`}
                 data-testid={`input-edit-title-${edit.id}`}
               />
             </div>
@@ -305,7 +343,7 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
               <Input
                 value={editFields["Editor Name"] || ""}
                 onChange={(e) => handleFieldChange("Editor Name", e.target.value)}
-                className="text-xs h-8 bg-background"
+                className={`text-xs h-8 bg-background${requiredClass(true, editFields["Editor Name"])}`}
                 data-testid={`input-editor-name-${edit.id}`}
               />
             </div>
@@ -315,7 +353,7 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                 type="date"
                 value={editFields["Broadcast Date"] || ""}
                 onChange={(e) => handleFieldChange("Broadcast Date", e.target.value)}
-                className="text-xs h-8 bg-background"
+                className={`text-xs h-8 bg-background${requiredClass(true, editFields["Broadcast Date"])}`}
               />
             </div>
             <div className="space-y-1">
@@ -324,7 +362,7 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                 value={editFields["Status"] || ""}
                 onValueChange={(v) => handleFieldChange("Status", v)}
               >
-                <SelectTrigger className="text-xs h-8 bg-background">
+                <SelectTrigger className={`text-xs h-8 bg-background${requiredClass(true, editFields["Status"])}`}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -342,7 +380,7 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                   type="url"
                   value={editFields["Video URL"] || ""}
                   onChange={(e) => handleFieldChange("Video URL", e.target.value)}
-                  className="text-xs h-8 bg-background"
+                  className={`text-xs h-8 bg-background${requiredClass(true, editFields["Video URL"])}`}
                 />
                 {editFields["Video URL"] && (
                   <OpenLinkButton url={editFields["Video URL"]} label="Open video URL" />
@@ -379,7 +417,7 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
-                Transcript URL
+                Full Service Transcription
                 <span className="text-[10px] text-muted-foreground/60 ml-1">
                   {linkedSermon ? "(saved to sermon)" : "(no linked sermon)"}
                 </span>
@@ -389,8 +427,8 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                   type="url"
                   placeholder={
                     linkedSermon
-                      ? "Enter transcript URL..."
-                      : "Link a sermon to set a transcript"
+                      ? "Enter transcription URL..."
+                      : "Link a sermon to set a transcription"
                   }
                   value={transcriptUrl}
                   disabled={!linkedSermon}
@@ -401,7 +439,22 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                   className="text-xs h-8 bg-background"
                 />
                 {transcriptUrl && (
-                  <OpenLinkButton url={transcriptUrl} label="Open transcript" />
+                  <OpenLinkButton url={transcriptUrl} label="Open transcription" />
+                )}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Final Edit Transcription</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  placeholder="Enter transcription URL..."
+                  value={editFields["Transcript"] || ""}
+                  onChange={(e) => handleFieldChange("Transcript", e.target.value)}
+                  className="text-xs h-8 bg-background"
+                />
+                {editFields["Transcript"] && (
+                  <OpenLinkButton url={editFields["Transcript"]} label="Open final edit transcription" />
                 )}
               </div>
             </div>
@@ -414,6 +467,16 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                 className="text-xs h-8 bg-background"
               />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Edit Description</Label>
+            <Textarea
+              value={editFields["Edit Description"] || ""}
+              onChange={(e) => handleFieldChange("Edit Description", e.target.value)}
+              placeholder="What is this edit? One or two sentences."
+              className="text-xs min-h-[48px] bg-background"
+            />
           </div>
 
           <div className="space-y-1">
@@ -437,22 +500,16 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">JA Notes</Label>
-            <Textarea
-              value={editFields["JA Notes"] || ""}
-              onChange={(e) => handleFieldChange("JA Notes", e.target.value)}
-              className="text-xs min-h-[60px] bg-background"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Editor Notes</Label>
-            <Textarea
-              value={editFields["Editors Notes"] || ""}
-              onChange={(e) => handleFieldChange("Editors Notes", e.target.value)}
-              className="text-xs min-h-[60px] bg-background"
-            />
-          </div>
+          <CollapsibleNotes
+            label="JA Notes"
+            value={editFields["JA Notes"] || ""}
+            onChange={(v) => handleFieldChange("JA Notes", v)}
+          />
+          <CollapsibleNotes
+            label="Editor Notes"
+            value={editFields["Editors Notes"] || ""}
+            onChange={(v) => handleFieldChange("Editors Notes", v)}
+          />
 
           <div className="flex items-center justify-between pt-1">
             <Button

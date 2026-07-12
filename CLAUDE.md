@@ -59,7 +59,27 @@ netlify/
 
 All data lives in Airtable. Three tables:
 
-- **Sermons** -- service date, platform (Sunday/Wednesday), title, URLs (video, trimmed, audio, transcription, YouTube, recap), publishing status (Facebook Done, Website Done), replay tracking
+- **Sermons** -- service date, platform (Sunday/Wednesday), title, URLs (video, trimmed, audio, transcription, YouTube, recap), publishing status (Facebook Done, Website Done = "Verified Live"), replay tracking
+- **Edits** also carry `Edit Description` (added 2026-07-12) and `Transcript` (relabeled "Final Edit Transcription" in the UI; the sermon's `Transcription URL` is "Full Service Transcription")
+
+## Send to Website
+
+The sermon page's Website step has a **Send to Website** button: it commits
+`src/sermons/<slug>.md` to `c7sharp9/pfc-website` via the GitHub contents API
+(the site auto-deploys from main), then writes the page URL back to the
+record's `Sermon URL`. Logic lives ONCE in `shared/send-to-website.ts` and is
+imported by BOTH API layers (`POST /api/sermons/:id/send-to-website`).
+
+- Sunday -> broadcast "Prophetic Fulfillment Church" (`YouTube Trimmed URL` +
+  `YouTube Full Service URL`); Wednesday -> "Pulling on Heaven Podcast"
+  (`Wednesday YouTube Link`). Slug = `july-5-2026` style from `Service`.
+- **Idempotent and non-destructive**: identical content = no commit
+  ("unchanged"); front-matter keys the dashboard doesn't manage
+  (legacyAudio, rebroadcast, visible, speaker) are preserved on update.
+- Env: `GITHUB_TOKEN` (contents:write on pfc-website) required;
+  `PFC_SITE_URL` optional (defaults to the Netlify preview; set to
+  https://garyzamora.com at domain cutover).
+- "Verified Live" (`Website Done`) stays a manual human check after the send.
 - **Edits** -- clips, recaps, sizzle reels linked to sermons; tracked by editor name, status, and dates
 - **Workflow** -- reference steps for the media publishing process (platform-specific)
 

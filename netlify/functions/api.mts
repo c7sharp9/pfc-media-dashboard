@@ -1,4 +1,5 @@
 import type { Context } from "@netlify/functions";
+import { sendToWebsite } from "../../shared/send-to-website";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
 const BASE_ID = "appsXqsMSCaQAOxoc";
@@ -107,6 +108,21 @@ export default async (req: Request, context: Context) => {
         `filterByFormula=${encodeURIComponent(formula)}`
       );
       return json({ records });
+    }
+
+    // POST /sermons/:id/send-to-website — commit the sermon to the site repo
+    const sendMatch = path.match(/^\/sermons\/([^/]+)\/send-to-website$/);
+    if (sendMatch && req.method === "POST") {
+      const recUrl = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sendMatch[1]}`;
+      const record = await airtableFetch(recUrl);
+      const result = await sendToWebsite(record.fields || {});
+      if (result.status !== "unchanged" || record.fields?.["Sermon URL"] !== result.pageUrl) {
+        await airtableFetch(recUrl, {
+          method: "PATCH",
+          body: JSON.stringify({ fields: { "Sermon URL": result.pageUrl } }),
+        });
+      }
+      return json(result);
     }
 
     // GET /sermons/:id

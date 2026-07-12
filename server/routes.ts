@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { sendToWebsite } from "../shared/send-to-website";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
 const BASE_ID = "appsXqsMSCaQAOxoc";
@@ -356,6 +357,29 @@ export async function registerRoutes(
       res.json(data);
     } catch (err: any) {
       console.error("Error creating sermon:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Send a sermon to the PFC website: commit src/sermons/<slug>.md to the
+  // site repo (auto-deploys), then record the page URL back on the record.
+  app.post("/api/sermons/:id/send-to-website", async (req, res) => {
+    try {
+      if (useSampleData) {
+        return res.status(503).json({ error: "Airtable is not connected (sample data mode)." });
+      }
+      const url = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`;
+      const record = await airtableFetch(url);
+      const result = await sendToWebsite(record.fields || {});
+      if (result.status !== "unchanged" || record.fields?.["Sermon URL"] !== result.pageUrl) {
+        await airtableFetch(url, {
+          method: "PATCH",
+          body: JSON.stringify({ fields: { "Sermon URL": result.pageUrl } }),
+        });
+      }
+      res.json(result);
+    } catch (err: any) {
+      console.error("Error sending sermon to website:", err.message);
       res.status(500).json({ error: err.message });
     }
   });

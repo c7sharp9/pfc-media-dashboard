@@ -151,6 +151,33 @@ export default function SermonDetail() {
     },
   });
 
+  // Send to Website: commits the sermon file to the site repo (auto-deploys).
+  const sendMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/sermons/${params.id}/send-to-website`);
+      return res.json();
+    },
+    onSuccess: (result: { status: string; pageUrl: string }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons"] });
+      toast({
+        title:
+          result.status === "unchanged"
+            ? "Already up to date"
+            : result.status === "updated"
+              ? "Updated on website"
+              : "Sent to website",
+        description:
+          result.status === "unchanged"
+            ? "The website already has this exact sermon."
+            : "The site is rebuilding; the page is live in about 30 seconds.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Send failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleFieldChange = (fieldName: string, value: any) => {
     setFields((prev) => ({ ...prev, [fieldName]: value }));
     setHasChanges(true);
@@ -198,6 +225,14 @@ export default function SermonDetail() {
   const platform = fields["Platform"] || "";
   const isSunday = platform === "Sunday";
 
+  // What Send to Website still needs before it can run.
+  const sendMissing: string[] = [];
+  if (!title.trim()) sendMissing.push("Title");
+  if (!fields["Service"]) sendMissing.push("Service date");
+  if (isSunday && !fields["YouTube Trimmed URL"]) sendMissing.push("YouTube trimmed video");
+  if (!isSunday && !fields["Wednesday YouTube Link"]) sendMissing.push("YouTube link");
+  const canSend = sendMissing.length === 0 && !hasChanges && !sendMutation.isPending;
+
   return (
     <div className="p-3 md:p-4 max-w-5xl mx-auto">
       {/* Header */}
@@ -226,7 +261,9 @@ export default function SermonDetail() {
               setHasChanges(true);
             }}
             placeholder="Enter sermon title..."
-            className="text-base font-semibold bg-transparent border-none outline-none w-full text-foreground placeholder:text-muted-foreground/50"
+            className={`text-base font-semibold bg-transparent outline-none w-full text-foreground placeholder:text-muted-foreground/50 ${
+              title.trim() ? "border-none" : "border-0 border-b border-red-500/50"
+            }`}
             data-testid="input-sermon-title"
           />
         </div>
@@ -270,51 +307,45 @@ export default function SermonDetail() {
       <div className="space-y-2 mb-4 lg:mb-0">
         {isSunday ? (
           <>
-            {/* SUNDAY Step 1: Full Service */}
+            {/* SUNDAY Step 1: Google Drive Files */}
             <WorkflowStep
-              title="Full Service"
+              title="Google Drive Files"
               icon={<Upload className="w-3.5 h-3.5" />}
-              isComplete={!!fields["Video URL"]}
+              isComplete={!!(fields["Video URL"] && fields["Trimmed Video URL"] && fields["Audio URL"])}
               stepNumber={1}
             >
               <UrlField
-                label="Video File"
+                label="Full Service"
                 value={fields["Video URL"] || ""}
                 fieldName="Video URL"
                 onChange={handleFieldChange}
                 placeholder="google drive link"
+                required
               />
-            </WorkflowStep>
-
-            {/* SUNDAY Step 2: Trimmed Media */}
-            <WorkflowStep
-              title="Trimmed Media"
-              icon={<Scissors className="w-3.5 h-3.5" />}
-              isComplete={!!(fields["Trimmed Video URL"] && fields["Audio URL"])}
-              stepNumber={2}
-            >
               <UrlField
-                label="Video File"
+                label="Trimmed Message"
                 value={fields["Trimmed Video URL"] || ""}
                 fieldName="Trimmed Video URL"
                 onChange={handleFieldChange}
                 placeholder="google drive link"
+                required
               />
               <UrlField
-                label="Audio File"
+                label="Trimmed Audio"
                 value={fields["Audio URL"] || ""}
                 fieldName="Audio URL"
                 onChange={handleFieldChange}
                 placeholder="google drive link"
+                required
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 3: Transcription */}
+            {/* SUNDAY Step 2: Full Service Transcription */}
             <WorkflowStep
-              title="Transcription"
+              title="Full Service Transcription"
               icon={<FileText className="w-3.5 h-3.5" />}
               isComplete={!!fields["Transcription URL"]}
-              stepNumber={3}
+              stepNumber={2}
             >
               <UrlField
                 label="Transcription URL"
@@ -322,51 +353,50 @@ export default function SermonDetail() {
                 fieldName="Transcription URL"
                 onChange={handleFieldChange}
                 placeholder="google drive link"
+                required
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 4: YouTube Hide Live Stream */}
+            {/* SUNDAY Step 3: YouTube */}
             <WorkflowStep
-              title="YouTube: Hide Live Stream"
-              icon={<EyeOff className="w-3.5 h-3.5" />}
-              isComplete={!!fields["YouTube Hidden"]}
-              stepNumber={4}
+              title="YouTube"
+              icon={<Youtube className="w-3.5 h-3.5" />}
+              isComplete={!!(fields["YouTube Full Service URL"] && fields["YouTube Trimmed URL"] && fields["YouTube Hidden"])}
+              stepNumber={3}
             >
-              <CheckboxField
-                label="YouTube Hidden"
-                checked={!!fields["YouTube Hidden"]}
-                fieldName="YouTube Hidden"
-                onChange={handleFieldChange}
-              />
               <UrlField
-                label="YouTube Hidden Live Stream Url"
+                label="Full Service"
                 value={fields["YouTube Full Service URL"] || ""}
                 fieldName="YouTube Full Service URL"
                 onChange={handleFieldChange}
+                required
               />
-            </WorkflowStep>
-
-            {/* SUNDAY Step 5: YouTube New Video */}
-            <WorkflowStep
-              title="YouTube New Video"
-              icon={<Youtube className="w-3.5 h-3.5" />}
-              isComplete={!!fields["YouTube Trimmed URL"]}
-              stepNumber={5}
-            >
+              <div className="space-y-0.5">
+                <CheckboxField
+                  label="Set to Hidden?"
+                  checked={!!fields["YouTube Hidden"]}
+                  fieldName="YouTube Hidden"
+                  onChange={handleFieldChange}
+                />
+                <p className="text-[10px] text-muted-foreground/70 pl-6">
+                  Not until the trimmed video is live.
+                </p>
+              </div>
               <UrlField
-                label="Trimmed Video"
+                label="New Trimmed Message"
                 value={fields["YouTube Trimmed URL"] || ""}
                 fieldName="YouTube Trimmed URL"
                 onChange={handleFieldChange}
+                required
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 6: Facebook */}
+            {/* SUNDAY Step 4: Facebook */}
             <WorkflowStep
               title="Facebook"
               icon={<SiFacebook className="w-3.5 h-3.5" />}
               isComplete={!!fields["Facebook Done"]}
-              stepNumber={6}
+              stepNumber={4}
             >
               <CheckboxField
                 label="Trimmed and Titled"
@@ -376,15 +406,33 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 7: Website */}
+            {/* SUNDAY Step 5: Website */}
             <WorkflowStep
               title="Website"
               icon={<Globe className="w-3.5 h-3.5" />}
               isComplete={!!fields["Website Done"]}
-              stepNumber={7}
+              stepNumber={5}
             >
+              <div className="space-y-1">
+                <Button
+                  size="sm"
+                  className="gap-1.5 h-7 text-xs"
+                  disabled={!canSend}
+                  onClick={() => sendMutation.mutate()}
+                  data-testid="button-send-to-website"
+                >
+                  <Globe className="w-3 h-3" />
+                  {sendMutation.isPending ? "Sending..." : "Send to Website"}
+                </Button>
+                {hasChanges && (
+                  <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+                )}
+                {!hasChanges && sendMissing.length > 0 && (
+                  <p className="text-[10px] text-red-400/80">Needs: {sendMissing.join(", ")}</p>
+                )}
+              </div>
               <CheckboxField
-                label="Post. Graphic. Audio. YouTube Links"
+                label="Verified Live"
                 checked={!!fields["Website Done"]}
                 fieldName="Website Done"
                 onChange={handleFieldChange}
@@ -411,6 +459,7 @@ export default function SermonDetail() {
                 value={fields["Video URL"] || ""}
                 fieldName="Video URL"
                 onChange={handleFieldChange}
+                required
               />
             </WorkflowStep>
 
@@ -426,12 +475,13 @@ export default function SermonDetail() {
                 value={fields["Audio URL"] || ""}
                 fieldName="Audio URL"
                 onChange={handleFieldChange}
+                required
               />
             </WorkflowStep>
 
-            {/* WEDNESDAY Step 3: Transcription */}
+            {/* WEDNESDAY Step 3: Full Service Transcription */}
             <WorkflowStep
-              title="Transcription"
+              title="Full Service Transcription"
               icon={<FileText className="w-3.5 h-3.5" />}
               isComplete={!!fields["Transcription URL"]}
               stepNumber={3}
@@ -441,6 +491,7 @@ export default function SermonDetail() {
                 value={fields["Transcription URL"] || ""}
                 fieldName="Transcription URL"
                 onChange={handleFieldChange}
+                required
               />
             </WorkflowStep>
 
@@ -477,6 +528,7 @@ export default function SermonDetail() {
                 value={fields["Wednesday YouTube Link"] || ""}
                 fieldName="Wednesday YouTube Link"
                 onChange={handleFieldChange}
+                required
               />
             </WorkflowStep>
 
@@ -487,8 +539,26 @@ export default function SermonDetail() {
               isComplete={!!fields["Website Done"]}
               stepNumber={6}
             >
+              <div className="space-y-1">
+                <Button
+                  size="sm"
+                  className="gap-1.5 h-7 text-xs"
+                  disabled={!canSend}
+                  onClick={() => sendMutation.mutate()}
+                  data-testid="button-send-to-website"
+                >
+                  <Globe className="w-3 h-3" />
+                  {sendMutation.isPending ? "Sending..." : "Send to Website"}
+                </Button>
+                {hasChanges && (
+                  <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+                )}
+                {!hasChanges && sendMissing.length > 0 && (
+                  <p className="text-[10px] text-red-400/80">Needs: {sendMissing.join(", ")}</p>
+                )}
+              </div>
               <CheckboxField
-                label="Post. Graphic. Audio. YouTube Links"
+                label="Verified Live"
                 checked={!!fields["Website Done"]}
                 fieldName="Website Done"
                 onChange={handleFieldChange}
