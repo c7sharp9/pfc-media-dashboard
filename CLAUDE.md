@@ -94,6 +94,8 @@ to Website** rewrites ONLY the `pullQuotes` front-matter block in
 layers). Re-sending replaces the live set (= the update button); zero checked
 quotes removes the section; idempotent when nothing changed. Targets: ~15
 quotes per service, ~10 per podcast -- Jonathan thins them editorially.
+Co-host (Steve) lines are fair game on podcasts, held to the same near-verbatim
+quality bar as Gary's.
 Endpoints: GET `/api/quotes?date`, PATCH `/api/quotes/:id`,
 POST `/api/sermons/:id/send-quotes`.
 
