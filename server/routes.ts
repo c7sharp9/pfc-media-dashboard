@@ -1,12 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { sendToWebsite } from "../shared/send-to-website";
+import { sendQuotesToWebsite } from "../shared/send-quotes-to-website";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
 const BASE_ID = "appsXqsMSCaQAOxoc";
 const SERMON_TABLE = "tbls5szdfaZtJrCfe";
 const EDITS_TABLE = "tblMWVa6ZJxGafti2";
 const WORKFLOW_TABLE = "tblBDeWClUOWbI0VL";
+const QUOTES_TABLE = "tbl6fKPmeuqBksu5H";
 
 const headers = {
   Authorization: `Bearer ${AIRTABLE_PAT}`,
@@ -363,6 +365,68 @@ export async function registerRoutes(
 
   // Send a sermon to the PFC website: commit src/sermons/<slug>.md to the
   // site repo (auto-deploys), then record the page URL back on the record.
+  // Quotes for a service date (manual + AI together, sorted by Airtable order)
+  app.get("/api/quotes", async (req, res) => {
+    try {
+      if (useSampleData) return res.json({ records: [] });
+      const date = String(req.query.date || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: "date=YYYY-MM-DD required" });
+      }
+      const formula = encodeURIComponent(`DATESTR({Service Date})='${date}'`);
+      const url = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`;
+      const data = await airtableFetch(url);
+      res.json({ records: data.records || [] });
+    } catch (err: any) {
+      console.error("Error fetching quotes:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/quotes/:id", async (req, res) => {
+    try {
+      if (useSampleData) {
+        return res.status(503).json({ error: "Airtable is not connected (sample data mode)." });
+      }
+      const url = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}/${req.params.id}`;
+      const data = await airtableFetch(url, {
+        method: "PATCH",
+        body: JSON.stringify({ fields: req.body || {} }),
+      });
+      res.json(data);
+    } catch (err: any) {
+      console.error("Error updating quote:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Publish the checked quotes for this sermon's date to the website page.
+  // Re-clicking replaces the live set (this is also the "update" button).
+  app.post("/api/sermons/:id/send-quotes", async (req, res) => {
+    try {
+      if (useSampleData) {
+        return res.status(503).json({ error: "Airtable is not connected (sample data mode)." });
+      }
+      const recUrl = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`;
+      const record = await airtableFetch(recUrl);
+      const date = (record.fields?.["Service"] || "").slice(0, 10);
+      const formula = encodeURIComponent(`AND(DATESTR({Service Date})='${date}',{On Website}=1)`);
+      const qUrl = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`;
+      const qData = await airtableFetch(qUrl);
+      // Final wins over Original; strip rich-text artifacts from Final.
+      const quotes = (qData.records || []).map((r: any) => ({
+        time: r.fields["Video Timecode"] || "",
+        text: String(r.fields["Quote Final"] || r.fields["Quote Original"] || "")
+          .replace(/<[^>]+>/g, "").trim(),
+      })).filter((q: any) => q.text);
+      const result = await sendQuotesToWebsite(date, record.fields?.["Title"] || "", quotes);
+      res.json(result);
+    } catch (err: any) {
+      console.error("Error sending quotes to website:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/sermons/:id/send-to-website", async (req, res) => {
     try {
       if (useSampleData) {

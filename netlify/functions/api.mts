@@ -1,11 +1,13 @@
 import type { Context } from "@netlify/functions";
 import { sendToWebsite } from "../../shared/send-to-website";
+import { sendQuotesToWebsite } from "../../shared/send-quotes-to-website";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
 const BASE_ID = "appsXqsMSCaQAOxoc";
 const SERMON_TABLE = "tbls5szdfaZtJrCfe";
 const EDITS_TABLE = "tblMWVa6ZJxGafti2";
 const WORKFLOW_TABLE = "tblBDeWClUOWbI0VL";
+const QUOTES_TABLE = "tbl6fKPmeuqBksu5H";
 
 const headers = {
   Authorization: `Bearer ${AIRTABLE_PAT}`,
@@ -108,6 +110,53 @@ export default async (req: Request, context: Context) => {
         `filterByFormula=${encodeURIComponent(formula)}`
       );
       return json({ records });
+    }
+
+    // ---- QUOTES ----
+
+    // GET /quotes?date=YYYY-MM-DD — all quotes for a service date
+    if (path === "/quotes" && req.method === "GET") {
+      const date = url.searchParams.get("date") || "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return json({ error: "date=YYYY-MM-DD required" }, 400);
+      }
+      const formula = encodeURIComponent(`DATESTR({Service Date})='${date}'`);
+      const data = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`
+      );
+      return json({ records: data.records || [] });
+    }
+
+    // PATCH /quotes/:id — update Quote Final / On Website / etc.
+    const quoteMatch = path.match(/^\/quotes\/([^/]+)$/);
+    if (quoteMatch && req.method === "PATCH") {
+      const body = await req.json();
+      const data = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}/${quoteMatch[1]}`,
+        { method: "PATCH", body: JSON.stringify({ fields: body }) }
+      );
+      return json(data);
+    }
+
+    // POST /sermons/:id/send-quotes — publish checked quotes to the site page.
+    // Re-clicking replaces the live set (this is also the "update" button).
+    const sendQuotesMatch = path.match(/^\/sermons\/([^/]+)\/send-quotes$/);
+    if (sendQuotesMatch && req.method === "POST") {
+      const record = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sendQuotesMatch[1]}`
+      );
+      const date = (record.fields?.["Service"] || "").slice(0, 10);
+      const formula = encodeURIComponent(`AND(DATESTR({Service Date})='${date}',{On Website}=1)`);
+      const qData = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`
+      );
+      const quotes = (qData.records || []).map((r: any) => ({
+        time: r.fields["Video Timecode"] || "",
+        text: String(r.fields["Quote Final"] || r.fields["Quote Original"] || "")
+          .replace(/<[^>]+>/g, "").trim(),
+      })).filter((q: any) => q.text);
+      const result = await sendQuotesToWebsite(date, record.fields?.["Title"] || "", quotes);
+      return json(result);
     }
 
     // POST /sermons/:id/send-to-website — commit the sermon to the site repo

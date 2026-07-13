@@ -25,6 +25,7 @@ import {
   Link2,
   Share2,
   Wand2,
+  Quote,
 } from "lucide-react";
 import { SiFacebook } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -78,6 +79,156 @@ function WorkflowStep({ title, icon, isComplete, children, stepNumber }: Workflo
         </div>
       </div>
     </Card>
+  );
+}
+
+interface QuoteRecord {
+  id: string;
+  fields: {
+    "Quote Original"?: string;
+    "Quote Final"?: string;
+    "Video Timecode"?: string;
+    "On Website"?: boolean;
+    Source?: string;
+  };
+}
+
+function timecodeSeconds(tc: string): number {
+  const parts = (tc || "").trim().split(":").map((p) => parseInt(p, 10));
+  if (parts.some((n) => Number.isNaN(n)) || parts.length === 0) return Infinity;
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+
+// Website Quotes: the selection table for "Moments from this message".
+// Check the ones to publish, tweak the Final text (Original is never touched),
+// then Send Quotes to Website -- re-sending REPLACES the live set, so the same
+// button is also the update button.
+function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDate?: string }) {
+  const { toast } = useToast();
+  const date = (serviceDate || "").slice(0, 10);
+  const { data } = useQuery<{ records: QuoteRecord[] }>({
+    queryKey: ["/api/quotes", { date }],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/quotes?date=${date}`);
+      return res.json();
+    },
+    enabled: !!date,
+  });
+  const quotes = (data?.records || [])
+    .slice()
+    .sort((a, b) => timecodeSeconds(a.fields["Video Timecode"] || "") - timecodeSeconds(b.fields["Video Timecode"] || ""));
+  const checkedCount = quotes.filter((q) => q.fields["On Website"]).length;
+
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  const patchMutation = useMutation({
+    mutationFn: async ({ id, fields }: { id: string; fields: Record<string, any> }) => {
+      const res = await apiRequest("PATCH", `/api/quotes/${id}`, fields);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/quotes", { date }] }),
+    onError: (error: Error) =>
+      toast({ title: "Error", description: error.message, variant: "destructive" }),
+  });
+
+  const sendQuotesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/sermons/${sermonId}/send-quotes`);
+      return res.json();
+    },
+    onSuccess: (result: { status: string; count: number; pageUrl: string }) => {
+      toast({
+        title:
+          result.status === "unchanged"
+            ? "Already up to date"
+            : result.status === "removed"
+              ? "Quotes removed from the page"
+              : `${result.count} quotes sent`,
+        description:
+          result.status === "unchanged"
+            ? "The website already has exactly these quotes."
+            : "The site is rebuilding; live in about 30 seconds.",
+      });
+    },
+    onError: (error: Error) =>
+      toast({ title: "Send failed", description: error.message, variant: "destructive" }),
+  });
+
+  if (!date) return null;
+
+  return (
+    <div className="mt-4">
+      <Separator className="my-3" />
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+          <Quote className="w-3.5 h-3.5" /> Website Quotes
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {checkedCount} of {quotes.length} selected
+          </span>
+          <Button
+            size="sm"
+            className="gap-1.5 h-7 text-xs"
+            disabled={quotes.length === 0 || sendQuotesMutation.isPending}
+            onClick={() => sendQuotesMutation.mutate()}
+            data-testid="button-send-quotes"
+          >
+            <Globe className="w-3 h-3" />
+            {sendQuotesMutation.isPending ? "Sending..." : "Send Quotes to Website"}
+          </Button>
+        </div>
+      </div>
+      {quotes.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No quotes for this service date yet. Claude extracts them from the transcript; they land here for review.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {quotes.map((q) => {
+            const original = q.fields["Quote Original"] || "";
+            const finalText = drafts[q.id] ?? (q.fields["Quote Final"] || "");
+            const published = finalText.trim() || original;
+            return (
+              <Card key={q.id} className={`p-2.5 ${q.fields["On Website"] ? "" : "opacity-55"}`}>
+                <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-3.5 w-3.5 accent-primary cursor-pointer shrink-0"
+                    checked={!!q.fields["On Website"]}
+                    onChange={(e) =>
+                      patchMutation.mutate({ id: q.id, fields: { "On Website": e.target.checked } })
+                    }
+                    aria-label="Publish this quote"
+                  />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-xs text-foreground leading-snug">&ldquo;{original.replace(/<[^>]+>/g, "")}&rdquo;</p>
+                    <Textarea
+                      value={finalText.replace(/<[^>]+>/g, "")}
+                      onChange={(e) => setDrafts((d) => ({ ...d, [q.id]: e.target.value }))}
+                      onBlur={() => {
+                        const v = (drafts[q.id] ?? "").trim();
+                        if (drafts[q.id] !== undefined && v !== (q.fields["Quote Final"] || "")) {
+                          patchMutation.mutate({ id: q.id, fields: { "Quote Final": v } });
+                        }
+                      }}
+                      placeholder="Final (optional): your revision wins over the original when filled."
+                      className="text-xs min-h-[30px] bg-background"
+                    />
+                  </div>
+                  <div className="text-right shrink-0 space-y-1">
+                    <p className="text-[10px] font-mono text-muted-foreground">{q.fields["Video Timecode"] || "--:--"}</p>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0">
+                      {q.fields["Source"] === "Claude" ? "AI" : "Manual"}
+                    </Badge>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -792,6 +943,8 @@ export default function SermonDetail() {
       </div>
       </div>
       </div>{/* close grid */}
+
+      <WebsiteQuotes sermonId={params.id!} serviceDate={fields["Service"]} />
 
       {/* Save floating button on mobile */}
       {hasChanges && (

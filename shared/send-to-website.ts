@@ -55,16 +55,21 @@ export interface SendResult {
 // a send never destroys archive data it doesn't know about.
 const MANAGED_KEYS = ["title", "date", "youtube", "fullService", "broadcast", "description", "longDescription"];
 
-// Pull the raw front-matter lines for keys we don't manage.
+// Pull the raw front-matter lines for keys we don't manage. Block-aware:
+// indented continuation lines (e.g. the "- time:/text:" items of a pullQuotes
+// list) belong to the key above them and are kept or dropped with it -- the
+// old line-by-line filter silently dropped them, corrupting multi-line YAML.
 export function unmanagedFrontMatterLines(existingMarkdown: string): string[] {
   const m = existingMarkdown.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return [];
-  return m[1]
-    .split("\n")
-    .filter((line) => {
-      const key = line.match(/^([A-Za-z][A-Za-z0-9_-]*):/)?.[1];
-      return key ? !MANAGED_KEYS.includes(key) : false;
-    });
+  const out: string[] = [];
+  let keepBlock = false;
+  for (const line of m[1].split("\n")) {
+    const key = line.match(/^([A-Za-z][A-Za-z0-9_-]*):/)?.[1];
+    if (key) keepBlock = !MANAGED_KEYS.includes(key);
+    if (keepBlock) out.push(line);
+  }
+  return out;
 }
 
 // Validate the record and build the markdown. Throws with a friendly message
