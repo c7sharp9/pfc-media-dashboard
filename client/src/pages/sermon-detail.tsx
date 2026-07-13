@@ -583,6 +583,16 @@ export default function SermonDetail() {
       </h2>
       <div className="space-y-3 mb-4">
         <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Description</Label>
+          <Textarea
+            value={fields["Description"] || ""}
+            onChange={(e) => handleFieldChange("Description", e.target.value)}
+            placeholder="Short public description of this message, in our voice. Used on the website."
+            className="min-h-[60px] text-xs bg-background"
+            data-testid="input-description"
+          />
+        </div>
+        <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">General Notes</Label>
           <Textarea
             value={fields["General Notes"] || ""}

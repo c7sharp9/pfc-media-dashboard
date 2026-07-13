@@ -7,6 +7,7 @@ export interface Sermon {
     "Service": string; // date YYYY-MM-DD
     "Platform": string; // Sunday | Wednesday
     "Title"?: string;
+    "Description"?: string;
     "Sermon URL"?: string;
     "General Notes"?: string;
     "Video URL"?: string;
@@ -69,6 +70,7 @@ export interface WorkflowStep {
 // Zod schemas for validation
 export const updateSermonSchema = z.object({
   "Title": z.string().optional(),
+  "Description": z.string().optional(),
   "Video URL": z.string().url().optional().or(z.literal("")),
   "Trimmed Video URL": z.string().url().optional().or(z.literal("")),
   "Audio URL": z.string().url().optional().or(z.literal("")),
