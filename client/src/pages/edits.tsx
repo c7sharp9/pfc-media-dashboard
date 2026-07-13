@@ -497,12 +497,45 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Short Website Description</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Short Website Description</Label>
+              <CharCount value={editFields["Short Website Description"]} />
+            </div>
             <Textarea
               value={editFields["Short Website Description"] || ""}
-              onChange={(e) => handleFieldChange("Short Website Description", e.target.value)}
-              placeholder="One-line tagline for the website."
+              onChange={(e) => handleFieldChange("Short Website Description", e.target.value.slice(0, SHORT_DESC_MAX))}
+              placeholder="One-line tagline for the website. Max 125 characters (two lines on the site)."
               className="text-xs min-h-[36px] bg-background"
+            />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Manual Short Website Description</Label>
+              <CharCount value={editFields["Manual Short Website Description"]} />
+            </div>
+            <Textarea
+              value={editFields["Manual Short Website Description"] || ""}
+              onChange={(e) => handleFieldChange("Manual Short Website Description", e.target.value.slice(0, SHORT_DESC_MAX))}
+              placeholder="Optional. If filled, this wins over the generated version at publish."
+              className="text-xs min-h-[36px] bg-background"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Long Description</Label>
+            <Textarea
+              value={editFields["Long Description"] || ""}
+              onChange={(e) => handleFieldChange("Long Description", e.target.value)}
+              placeholder="Fuller context for the recap page. Written from the transcript; no length cap."
+              className="text-xs min-h-[64px] bg-background"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Manual Long Description</Label>
+            <Textarea
+              value={editFields["Manual Long Description"] || ""}
+              onChange={(e) => handleFieldChange("Manual Long Description", e.target.value)}
+              placeholder="Optional. If filled, this wins over the generated version at publish."
+              className="text-xs min-h-[64px] bg-background"
             />
           </div>
 
@@ -622,6 +655,18 @@ function GroupHeader({ date, sermon }: { date: string; sermon?: Sermon }) {
         <span className="text-xs text-muted-foreground/60">No linked sermon</span>
       ) : null}
     </div>
+  );
+}
+
+const SHORT_DESC_MAX = 125; // ~two lines on the website at normal screen width
+
+function CharCount({ value }: { value?: string }) {
+  const len = (value || "").length;
+  if (!len) return null;
+  return (
+    <span className={`text-[10px] tabular-nums ${len >= SHORT_DESC_MAX ? "text-destructive" : "text-muted-foreground/70"}`}>
+      {len}/{SHORT_DESC_MAX}
+    </span>
   );
 }
 

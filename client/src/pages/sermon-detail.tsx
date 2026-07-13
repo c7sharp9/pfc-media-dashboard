@@ -81,6 +81,18 @@ function WorkflowStep({ title, icon, isComplete, children, stepNumber }: Workflo
   );
 }
 
+const SHORT_DESC_MAX = 125; // ~two lines on the website at normal screen width
+
+function CharCount({ value }: { value?: string }) {
+  const len = (value || "").length;
+  if (!len) return null;
+  return (
+    <span className={`text-[10px] tabular-nums ${len >= SHORT_DESC_MAX ? "text-destructive" : "text-muted-foreground/70"}`}>
+      {len}/{SHORT_DESC_MAX}
+    </span>
+  );
+}
+
 export default function SermonDetail() {
   const params = useParams() as { id: string };
   const { toast } = useToast();
@@ -583,13 +595,46 @@ export default function SermonDetail() {
       </h2>
       <div className="space-y-3 mb-4">
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Description</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-muted-foreground">Description</Label>
+            <CharCount value={fields["Description"]} />
+          </div>
           <Textarea
             value={fields["Description"] || ""}
-            onChange={(e) => handleFieldChange("Description", e.target.value)}
-            placeholder="Short public description of this message, in our voice. Used on the website."
+            onChange={(e) => handleFieldChange("Description", e.target.value.slice(0, SHORT_DESC_MAX))}
+            placeholder="Short public description, in our voice. Max 125 characters (two lines on the site)."
             className="min-h-[60px] text-xs bg-background"
             data-testid="input-description"
+          />
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-muted-foreground">Manual Description</Label>
+            <CharCount value={fields["Manual Description"]} />
+          </div>
+          <Textarea
+            value={fields["Manual Description"] || ""}
+            onChange={(e) => handleFieldChange("Manual Description", e.target.value.slice(0, SHORT_DESC_MAX))}
+            placeholder="Optional. If filled, this wins over the generated version at publish."
+            className="min-h-[60px] text-xs bg-background"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Long Description</Label>
+          <Textarea
+            value={fields["Long Description"] || ""}
+            onChange={(e) => handleFieldChange("Long Description", e.target.value)}
+            placeholder="Fuller context for the message page. Written from the transcript; no length cap."
+            className="min-h-[80px] text-xs bg-background"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Manual Long Description</Label>
+          <Textarea
+            value={fields["Manual Long Description"] || ""}
+            onChange={(e) => handleFieldChange("Manual Long Description", e.target.value)}
+            placeholder="Optional. If filled, this wins over the generated version at publish."
+            className="min-h-[80px] text-xs bg-background"
           />
         </div>
         <div className="space-y-1">

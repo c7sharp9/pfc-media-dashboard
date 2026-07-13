@@ -8,6 +8,9 @@ export interface Sermon {
     "Platform": string; // Sunday | Wednesday
     "Title"?: string;
     "Description"?: string;
+    "Manual Description"?: string;
+    "Long Description"?: string;
+    "Manual Long Description"?: string;
     "Sermon URL"?: string;
     "General Notes"?: string;
     "Video URL"?: string;
@@ -51,6 +54,9 @@ export interface Edit {
     "Title"?: string;
     "Edit Description"?: string;
     "Short Website Description"?: string;
+    "Manual Short Website Description"?: string;
+    "Long Description"?: string;
+    "Manual Long Description"?: string;
     "XML"?: string;
   };
 }
@@ -72,6 +78,9 @@ export interface WorkflowStep {
 export const updateSermonSchema = z.object({
   "Title": z.string().optional(),
   "Description": z.string().optional(),
+  "Manual Description": z.string().optional(),
+  "Long Description": z.string().optional(),
+  "Manual Long Description": z.string().optional(),
   "Video URL": z.string().url().optional().or(z.literal("")),
   "Trimmed Video URL": z.string().url().optional().or(z.literal("")),
   "Audio URL": z.string().url().optional().or(z.literal("")),
@@ -96,6 +105,9 @@ export const createEditSchema = z.object({
   "Title": z.string().optional(),
   "Edit Description": z.string().optional(),
   "Short Website Description": z.string().optional(),
+  "Manual Short Website Description": z.string().optional(),
+  "Long Description": z.string().optional(),
+  "Manual Long Description": z.string().optional(),
   "Status": z.string().optional(),
   "Type": z.array(z.string()).optional(),
   "Editor Name": z.string().optional(),

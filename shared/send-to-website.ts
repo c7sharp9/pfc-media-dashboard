@@ -53,7 +53,7 @@ export interface SendResult {
 // Front-matter keys this integration owns. Anything else already in the file
 // (legacyAudio, rebroadcast, visible, speaker, ...) is preserved verbatim so
 // a send never destroys archive data it doesn't know about.
-const MANAGED_KEYS = ["title", "date", "youtube", "fullService", "broadcast", "description"];
+const MANAGED_KEYS = ["title", "date", "youtube", "fullService", "broadcast", "description", "longDescription"];
 
 // Pull the raw front-matter lines for keys we don't manage.
 export function unmanagedFrontMatterLines(existingMarkdown: string): string[] {
@@ -113,8 +113,11 @@ export function buildSermonMarkdown(
   ];
   if (fullService) lines.push(`fullService: "${fullService}"`);
   lines.push(`broadcast: "${broadcast}"`);
-  const desc = (fields["Description"] || "").trim().replace(/\s+/g, " ");
+  // Manual fields win over generated ones when filled.
+  const desc = ((fields["Manual Description"] || fields["Description"]) || "").trim().replace(/\s+/g, " ");
   if (desc) lines.push(`description: "${desc.replace(/"/g, "'")}"`);
+  const longDesc = ((fields["Manual Long Description"] || fields["Long Description"]) || "").trim().replace(/\s+/g, " ");
+  if (longDesc) lines.push(`longDescription: "${longDesc.replace(/"/g, "'")}"`);
   lines.push(...extraLines);
   lines.push("---", "");
 
