@@ -81,6 +81,22 @@ imported by BOTH API layers (`POST /api/sermons/:id/send-to-website`).
   https://garyzamora.com at domain cutover).
 - "Verified Live" (`Website Done`) stays a manual human check after the send.
 
+## Website Quotes ("Moments from this message")
+
+The sermon page's **Website Quotes** section manages the pull-quote cards on
+the site's message pages. Pipeline mirrors the description system: Claude
+extracts near-verbatim quotes + timecodes from the transcript into the Quotes
+table (`tbl6fKPmeuqBksu5H`, `Source=Claude`, quotes match sermons by Service
+Date); the team checks `On Website` and optionally edits `Quote Final`
+(Final wins over the untouched Original -- manual-wins again); **Send Quotes
+to Website** rewrites ONLY the `pullQuotes` front-matter block in
+`src/sermons/<slug>.md` via `shared/send-quotes-to-website.ts` (both API
+layers). Re-sending replaces the live set (= the update button); zero checked
+quotes removes the section; idempotent when nothing changed. Targets: ~15
+quotes per service, ~10 per podcast -- Jonathan thins them editorially.
+Endpoints: GET `/api/quotes?date`, PATCH `/api/quotes/:id`,
+POST `/api/sermons/:id/send-quotes`.
+
 ## Send to Website (recap edits)
 
 Recap-type edits have their own **Send to Website** button: it POSTs
