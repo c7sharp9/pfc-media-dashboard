@@ -59,8 +59,8 @@ netlify/
 
 All data lives in Airtable. Three tables:
 
-- **Sermons** -- service date, platform (Sunday/Wednesday), title, `Description` (public copy, flows to the website), URLs (video, trimmed, audio, transcription, YouTube, recap), publishing status (Facebook Done, Website Done = "Verified Live"), replay tracking
-- **Edits** -- clips, recaps, sizzle reels linked to sermons; tracked by editor name, status, and dates. Also carry `Edit Description` + `Short Website Description` (the site tagline; added 2026-07-12/13) and `Transcript` (relabeled "Final Edit Transcription" in the UI; the sermon's `Transcription URL` is "Full Service Transcription")
+- **Sermons** -- service date, platform (Sunday/Wednesday), title, four description fields (`Short Description`/`Manual Short Description`/`Long Description`/`Manual Long Description` -- manual wins at publish, short capped 125 chars), URLs (video, trimmed, audio, transcription, YouTube, recap), publishing status (Facebook Done, Website Done = "Verified Live"), replay tracking
+- **Edits** -- clips, recaps, sizzle reels linked to sermons; tracked by editor name, status, and dates. Also carry `Edit Description` (internal note) and four website description fields (`Short Website Description`/`Manual Short Website Description`/`Long Description`/`Manual Long Description` -- manual wins at publish) and `Transcript` (relabeled "Final Edit Transcription" in the UI; the sermon's `Transcription URL` is "Full Service Transcription")
 
 ## Send to Website
 

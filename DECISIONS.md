@@ -47,3 +47,11 @@ Each decision follows: **Context** (why), **Decision** (what), **Consequences** 
 - **Context:** One-click publishing for sermons (light) and recap edits (heavy: ffmpeg + 340MB files, impossible in a 26s serverless function).
 - **Decision:** Sermons: `shared/send-to-website.ts` imported by BOTH API layers commits the markdown via GitHub contents API. Recap edits: `POST /api/edits/:id/publish` fires `repository_dispatch`; the `publish-recap` Action on `c7sharp9/pfc-website` runs the whole pipeline in CI.
 - **Consequences:** Dashboard needs only `GITHUB_TOKEN` (fine-grained, contents:write on pfc-website, expires ~2027-07). Airtable stays the production source of truth; the site repo is the website source of truth.
+
+---
+
+## 2026-07-13 — Description fields: manual/auto x short/long, manual wins
+
+- **Context:** A single description field couldn't separate AI taglines, human YouTube long-texts, and generated long copy; regeneration overwrote human edits.
+- **Decision:** Four fields per record (short/long x generated/manual). `send-to-website.ts` reads `manual || generated`. Short capped at 125 chars, enforced in the UI with a live counter. All field names say "short" or "long".
+- **Consequences:** Migrated 27 sermon records' old `Description` -> `Manual Long Description` (the imported YouTube texts are long, not short). Generation can now run without clobbering human copy. Website story: `~/Code/pfc-website/memory/project_description_system.md`.
