@@ -39,3 +39,11 @@ Each decision follows: **Context** (why), **Decision** (what), **Consequences** 
 ---
 
 *Add new decisions at the bottom. Number sequentially.*
+
+---
+
+## 2026-07-12/13 — Website publishing lives here, media processing lives in the website repo's CI
+
+- **Context:** One-click publishing for sermons (light) and recap edits (heavy: ffmpeg + 340MB files, impossible in a 26s serverless function).
+- **Decision:** Sermons: `shared/send-to-website.ts` imported by BOTH API layers commits the markdown via GitHub contents API. Recap edits: `POST /api/edits/:id/publish` fires `repository_dispatch`; the `publish-recap` Action on `c7sharp9/pfc-website` runs the whole pipeline in CI.
+- **Consequences:** Dashboard needs only `GITHUB_TOKEN` (fine-grained, contents:write on pfc-website, expires ~2027-07). Airtable stays the production source of truth; the site repo is the website source of truth.

@@ -2,7 +2,14 @@
 
 ## Current State
 
-Dashboard tracks sermons, edits, and workflow steps via Airtable. Deployed on Netlify.
+Dashboard tracks sermons, edits, and workflow steps via Airtable; deployed on Netlify. Both
+website bridges are live: sermon Send-to-Website (direct commit) and recap Send-to-Website
+(GitHub Action pipeline, ~10 min click-to-live). Descriptions + transcripts flow to/from the site.
+
+## Dated next steps
+
+- [ ] [2026-07-13] At garyzamora.com DNS cutover: set `PFC_SITE_URL=https://garyzamora.com` in this site's Netlify env (write-back URLs currently point at the preview).
+- [ ] [2026-07-13] ~2027-07: `GITHUB_TOKEN` (fine-grained PAT `pfc-dashboard-send-to-website`) expires — mint a new one + `netlify env:set`.
 
 ## Near Term
 

@@ -59,8 +59,8 @@ netlify/
 
 All data lives in Airtable. Three tables:
 
-- **Sermons** -- service date, platform (Sunday/Wednesday), title, URLs (video, trimmed, audio, transcription, YouTube, recap), publishing status (Facebook Done, Website Done = "Verified Live"), replay tracking
-- **Edits** also carry `Edit Description` (added 2026-07-12) and `Transcript` (relabeled "Final Edit Transcription" in the UI; the sermon's `Transcription URL` is "Full Service Transcription")
+- **Sermons** -- service date, platform (Sunday/Wednesday), title, `Description` (public copy, flows to the website), URLs (video, trimmed, audio, transcription, YouTube, recap), publishing status (Facebook Done, Website Done = "Verified Live"), replay tracking
+- **Edits** -- clips, recaps, sizzle reels linked to sermons; tracked by editor name, status, and dates. Also carry `Edit Description` + `Short Website Description` (the site tagline; added 2026-07-12/13) and `Transcript` (relabeled "Final Edit Transcription" in the UI; the sermon's `Transcription URL` is "Full Service Transcription")
 
 ## Send to Website
 
@@ -92,8 +92,6 @@ recaps.json entry) and commits, so the recap is live ~10 minutes after the
 click. Title comes from the edit (or its sermon); the site tagline comes from
 `Short Website Description`. Uses the same `GITHUB_TOKEN`; the Action's own
 secrets (AIRTABLE_PAT, CF_ACCOUNT_ID, CF_STREAM_TOKEN) live on the website repo.
-- **Edits** -- clips, recaps, sizzle reels linked to sermons; tracked by editor name, status, and dates
-- **Workflow** -- reference steps for the media publishing process (platform-specific)
 
 ## Path Aliases
 
@@ -110,3 +108,5 @@ Configured in `vite.config.ts`:
 - **Netlify redirects:** `/api/*` is proxied to the serverless function. The SPA fallback catches everything else. Order matters in `netlify.toml`.
 - **Express 5:** This project uses Express v5, which has breaking changes from v4 (e.g., path matching, error handling).
 - **Airtable IDs are hardcoded** in both `server/routes.ts` and `netlify/functions/api.mts` (base ID, table IDs). Changing the Airtable base requires updating the constants in both files.
+
+- **Workflow** -- reference steps for the media publishing process (platform-specific)
