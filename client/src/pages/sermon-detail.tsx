@@ -596,12 +596,12 @@ export default function SermonDetail() {
       <div className="space-y-3 mb-4">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Description</Label>
-            <CharCount value={fields["Description"]} />
+            <Label className="text-xs text-muted-foreground">Short Description</Label>
+            <CharCount value={fields["Short Description"]} />
           </div>
           <Textarea
-            value={fields["Description"] || ""}
-            onChange={(e) => handleFieldChange("Description", e.target.value.slice(0, SHORT_DESC_MAX))}
+            value={fields["Short Description"] || ""}
+            onChange={(e) => handleFieldChange("Short Description", e.target.value.slice(0, SHORT_DESC_MAX))}
             placeholder="Short public description, in our voice. Max 125 characters (two lines on the site)."
             className="min-h-[60px] text-xs bg-background"
             data-testid="input-description"
@@ -609,12 +609,12 @@ export default function SermonDetail() {
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Manual Description</Label>
-            <CharCount value={fields["Manual Description"]} />
+            <Label className="text-xs text-muted-foreground">Manual Short Description</Label>
+            <CharCount value={fields["Manual Short Description"]} />
           </div>
           <Textarea
-            value={fields["Manual Description"] || ""}
-            onChange={(e) => handleFieldChange("Manual Description", e.target.value.slice(0, SHORT_DESC_MAX))}
+            value={fields["Manual Short Description"] || ""}
+            onChange={(e) => handleFieldChange("Manual Short Description", e.target.value.slice(0, SHORT_DESC_MAX))}
             placeholder="Optional. If filled, this wins over the generated version at publish."
             className="min-h-[60px] text-xs bg-background"
           />

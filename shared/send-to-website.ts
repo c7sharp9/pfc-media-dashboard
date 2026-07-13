@@ -114,7 +114,7 @@ export function buildSermonMarkdown(
   if (fullService) lines.push(`fullService: "${fullService}"`);
   lines.push(`broadcast: "${broadcast}"`);
   // Manual fields win over generated ones when filled.
-  const desc = ((fields["Manual Description"] || fields["Description"]) || "").trim().replace(/\s+/g, " ");
+  const desc = ((fields["Manual Short Description"] || fields["Short Description"]) || "").trim().replace(/\s+/g, " ");
   if (desc) lines.push(`description: "${desc.replace(/"/g, "'")}"`);
   const longDesc = ((fields["Manual Long Description"] || fields["Long Description"]) || "").trim().replace(/\s+/g, " ");
   if (longDesc) lines.push(`longDescription: "${longDesc.replace(/"/g, "'")}"`);
