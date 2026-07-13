@@ -80,6 +80,18 @@ imported by BOTH API layers (`POST /api/sermons/:id/send-to-website`).
   `PFC_SITE_URL` optional (defaults to the Netlify preview; set to
   https://garyzamora.com at domain cutover).
 - "Verified Live" (`Website Done`) stays a manual human check after the send.
+
+## Send to Website (recap edits)
+
+Recap-type edits have their own **Send to Website** button: it POSTs
+`/api/edits/:id/publish`, which fires a `repository_dispatch` (event
+`publish-recap`) on `c7sharp9/pfc-website`. A GitHub Action there runs
+`tools/recap-pipeline.py --edit <id> --apply` in CI (Drive download -> ffmpeg
+1080p 2250kbps -> Cloudflare Stream -> AI captions -> transcript ->
+recaps.json entry) and commits, so the recap is live ~10 minutes after the
+click. Title comes from the edit (or its sermon); the site tagline comes from
+`Short Website Description`. Uses the same `GITHUB_TOKEN`; the Action's own
+secrets (AIRTABLE_PAT, CF_ACCOUNT_ID, CF_STREAM_TOKEN) live on the website repo.
 - **Edits** -- clips, recaps, sizzle reels linked to sermons; tracked by editor name, status, and dates
 - **Workflow** -- reference steps for the media publishing process (platform-specific)
 
