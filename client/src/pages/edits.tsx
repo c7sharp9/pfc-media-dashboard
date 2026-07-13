@@ -266,6 +266,24 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
     },
   });
 
+  // Publish this recap to the website: kicks off the pfc-website GitHub
+  // Action (download -> compress -> Stream -> captions -> site entry).
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/edits/${edit.id}/publish`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Publishing started",
+        description: "The pipeline is running; the recap is on the site in about 10 minutes.",
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Publish failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleFieldChange = (field: string, value: any) => {
     setEditFields((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
@@ -519,6 +537,30 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
             value={editFields["Editors Notes"] || ""}
             onChange={(v) => handleFieldChange("Editors Notes", v)}
           />
+
+          {(editFields["Type"] || []).includes("Recap") && (
+            <div className="space-y-1 pt-1">
+              <Button
+                size="sm"
+                className="gap-1.5 h-7 text-xs"
+                disabled={!editFields["Video URL"] || hasChanges || publishMutation.isPending}
+                onClick={() => publishMutation.mutate()}
+                data-testid={`button-publish-recap-${edit.id}`}
+              >
+                <Globe className="w-3 h-3" />
+                {publishMutation.isPending ? "Starting..." : "Send to Website"}
+              </Button>
+              {hasChanges && (
+                <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+              )}
+              {!hasChanges && !editFields["Video URL"] && (
+                <p className="text-[10px] text-red-400/80">Needs a Video URL.</p>
+              )}
+              {!hasChanges && editFields["Video URL"] && !editFields["Short Website Description"] && (
+                <p className="text-[10px] text-muted-foreground/70">No Short Website Description yet; it will publish without a tagline.</p>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-between pt-1">
             <Button

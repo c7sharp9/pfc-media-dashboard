@@ -441,6 +441,33 @@ export async function registerRoutes(
     }
   });
 
+  // Publish a recap edit to the website: triggers the pfc-website GitHub
+  // Action (publish-recap), which runs the media pipeline and commits.
+  app.post("/api/edits/:id/publish", async (req, res) => {
+    try {
+      const token = process.env.GITHUB_TOKEN || "";
+      if (!token) return res.status(503).json({ error: "GITHUB_TOKEN is not configured on the server." });
+      const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ event_type: "publish-recap", client_payload: { editId: req.params.id } }),
+      });
+      if (gh.status !== 204) {
+        const text = await gh.text();
+        return res.status(502).json({ error: `GitHub dispatch failed (${gh.status}): ${text}` });
+      }
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("Error publishing recap:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/edits", async (req, res) => {
     try {
       if (useSampleData) {
