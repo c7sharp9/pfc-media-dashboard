@@ -478,6 +478,15 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
               className="text-xs min-h-[48px] bg-background"
             />
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Short Website Description</Label>
+            <Textarea
+              value={editFields["Short Website Description"] || ""}
+              onChange={(e) => handleFieldChange("Short Website Description", e.target.value)}
+              placeholder="One-line tagline for the website."
+              className="text-xs min-h-[36px] bg-background"
+            />
+          </div>
 
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Type</Label>
