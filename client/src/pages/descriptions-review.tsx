@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExpandTextarea } from "@/components/ui/expand-textarea";
 import {
-  Search, Globe, ChevronRight, ChevronDown, ChevronsDownUp, ChevronsUpDown, RotateCcw,
+  Search, Globe, ChevronRight, ChevronDown, RotateCcw,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatLongDate } from "@/lib/utils";
@@ -37,6 +37,7 @@ function DescField({
   onSaveManual,
   cap,
   collapsedHeight,
+  defaultExpanded,
 }: {
   label: string;
   ai: string;
@@ -44,6 +45,7 @@ function DescField({
   onSaveManual: (value: string) => void;
   cap?: number;
   collapsedHeight: string;
+  defaultExpanded?: boolean;
 }) {
   const usingManual = !!manual.trim();
   const [draft, setDraft] = useState<string | null>(null);
@@ -80,6 +82,7 @@ function DescField({
         onBlur={commit}
         placeholder={ai ? "Edit to override the AI draft (your copy wins)." : "No draft yet — run Prepare, or write one."}
         collapsedHeight={collapsedHeight}
+        defaultExpanded={defaultExpanded}
         className="text-xs bg-background"
       />
       {usingManual && ai && ai.trim() !== effective.trim() && !dirty && (
@@ -103,7 +106,7 @@ export default function DescriptionsReviewPage() {
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [openId, setOpenId] = useState<string | null>(null);
   const [defaultsSet, setDefaultsSet] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
 
@@ -166,6 +169,7 @@ export default function DescriptionsReviewPage() {
       const reviewed = !!s.fields["Descriptions Reviewed"];
       const hasShort = !!eff(s, "Short").trim();
       if (tab === "unreviewed" && reviewed) return false;
+      if (tab === "reviewed" && !reviewed) return false;
       if (tab === "missing" && hasShort) return false;
       if (needle) {
         const hay = `${s.fields["Title"] || ""} ${s.fields["Service"] || ""} ${eff(s, "Short")} ${eff(s, "Long")}`.toLowerCase();
@@ -175,25 +179,15 @@ export default function DescriptionsReviewPage() {
     });
   }, [data, tab, needle]);
 
-  // Default: expand the ones that still need review.
+  // Accordion: open the first in-scope unreviewed card on load.
   useEffect(() => {
     if (defaultsSet || !data) return;
-    // Open just the first few unreviewed -- with a large backlog, opening
-    // every card would mount hundreds of textareas at once.
-    const initial: Record<string, boolean> = {};
-    (data.records || [])
-      .filter((s) => !s.fields["Descriptions Reviewed"] && !s.fields["Skip Website"])
-      .slice(0, 6)
-      .forEach((s) => (initial[s.id] = true));
-    setOpen(initial);
+    const first = (data.records || []).find(
+      (s) => !s.fields["Descriptions Reviewed"] && !s.fields["Skip Website"]
+    );
+    setOpenId(first ? first.id : null);
     setDefaultsSet(true);
   }, [data, defaultsSet]);
-
-  const setAll = (value: boolean) => {
-    const next: Record<string, boolean> = {};
-    filtered.forEach((s) => (next[s.id] = value));
-    setOpen(next);
-  };
 
   return (
     <div className="p-3 md:p-4 max-w-4xl mx-auto">
@@ -201,7 +195,7 @@ export default function DescriptionsReviewPage() {
         <div>
           <h1 className="text-base font-semibold text-foreground">Descriptions</h1>
           <p className="text-xs text-muted-foreground">
-            Review, revise, and send each message's short + long descriptions.
+            Review, revise, and send each sermon's short + long descriptions.
           </p>
         </div>
         <span className="text-xs text-muted-foreground tabular-nums">{filtered.length}</span>
@@ -212,24 +206,17 @@ export default function DescriptionsReviewPage() {
           <TabsList className="bg-muted/50">
             <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
             <TabsTrigger value="unreviewed" className="text-xs">Needs review</TabsTrigger>
+            <TabsTrigger value="reviewed" className="text-xs">Reviewed</TabsTrigger>
             <TabsTrigger value="missing" className="text-xs">Missing</TabsTrigger>
             <TabsTrigger value="skipped" className="text-xs">Skipped</TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="flex items-center gap-1 ml-auto">
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs gap-1 text-muted-foreground" onClick={() => setAll(true)}>
-            <ChevronsUpDown className="w-3.5 h-3.5" /> Expand all
-          </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs gap-1 text-muted-foreground" onClick={() => setAll(false)}>
-            <ChevronsDownUp className="w-3.5 h-3.5" /> Collapse all
-          </Button>
-        </div>
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search messages..."
+            placeholder="Search sermons..."
             className="h-8 pl-8 text-xs bg-card"
             data-testid="input-desc-search"
           />
@@ -247,16 +234,16 @@ export default function DescriptionsReviewPage() {
           {tab === "unreviewed"
             ? "Nothing awaiting review. All caught up."
             : tab === "missing"
-              ? "Every in-scope message has a short description."
+              ? "Every in-scope sermon has a short description."
               : tab === "skipped"
                 ? "Nothing skipped."
-                : "No messages match."}
+                : "No sermons match."}
         </p>
       ) : (
         <div className="space-y-2">
           {filtered.map((s) => {
             const reviewed = !!s.fields["Descriptions Reviewed"];
-            const isOpen = !!open[s.id];
+            const isOpen = openId === s.id;
             const date = (s.fields["Service"] || "").slice(0, 10);
             const published = !!s.fields["Sermon URL"];
             const isSending = sendingId === s.id && sendMutation.isPending;
@@ -264,7 +251,7 @@ export default function DescriptionsReviewPage() {
               <Card key={s.id} className="overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setOpen((o) => ({ ...o, [s.id]: !o[s.id] }))}
+                  onClick={() => setOpenId((id) => (id === s.id ? null : s.id))}
                   className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent/30 transition-colors"
                 >
                   <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform shrink-0 ${isOpen ? "" : "-rotate-90"}`} />
@@ -293,6 +280,7 @@ export default function DescriptionsReviewPage() {
                       onSaveManual={(v) => patch(s.id, { "Manual Short Description": v })}
                       cap={SHORT_MAX}
                       collapsedHeight="h-[44px]"
+                      defaultExpanded
                     />
                     <DescField
                       label="Long"
@@ -300,6 +288,7 @@ export default function DescriptionsReviewPage() {
                       manual={s.fields["Manual Long Description"] || ""}
                       onSaveManual={(v) => patch(s.id, { "Manual Long Description": v })}
                       collapsedHeight="h-[72px]"
+                      defaultExpanded
                     />
                     <div className="flex items-center justify-between gap-2 pt-1">
                       <div className="flex items-center gap-3">
@@ -307,7 +296,7 @@ export default function DescriptionsReviewPage() {
                           href={`/sermon/${s.id}`}
                           className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5"
                         >
-                          Open message <ChevronRight className="w-3 h-3" />
+                          Open sermon <ChevronRight className="w-3 h-3" />
                         </Link>
                         <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground">
                           <input

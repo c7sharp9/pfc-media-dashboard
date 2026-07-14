@@ -8,14 +8,16 @@ import { cn } from "@/lib/utils";
 // exactly (no dead space), with a small floor so empty boxes look sane.
 type Props = React.ComponentProps<typeof Textarea> & {
   collapsedHeight?: string; // tailwind h class for the collapsed state
+  defaultExpanded?: boolean; // start fit-to-content (shows the whole value)
 };
 
 export function ExpandTextarea({
   className,
   collapsedHeight = "h-[60px]",
+  defaultExpanded = false,
   ...props
 }: Props) {
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(defaultExpanded);
   const ref = React.useRef<HTMLTextAreaElement>(null);
 
   // Fit-to-content while expanded (re-measures as the user types).
