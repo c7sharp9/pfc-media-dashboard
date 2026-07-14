@@ -96,7 +96,12 @@ quotes removes the section; idempotent when nothing changed. Targets: ~15
 quotes per service, ~10 per podcast -- Jonathan thins them editorially.
 Co-host (Steve) lines are fair game on podcasts, held to the same near-verbatim
 quality bar as Gary's.
-The **Quotes page** (/quotes) is the review workspace: collapsible per-date
+Quotes split into two corpora via `Source`: pipeline quotes (Claude/Manual,
+tied to sermons) and **OG** (733 legacy hand-logged social one-liners, date +
+quote only -- not part of the website pipeline). The **Quotes page** (/quotes)
+is display-only browsing for the team: toggle chips for Sermon Quotes (only
+the KEPT/On Website ones) and OG Quotes, search, one-click copy.
+The **Sermon Quotes page** (/sermon-quotes) is the review workspace: collapsible per-date
 groups (unreviewed open by default), inline On Website checkboxes + editable
 Final, per-group Send, Expand/Collapse all, Unreviewed filter, one-click copy
 for marketing. `Reviewed` (checkbox) is set on EVERY quote of a date by a

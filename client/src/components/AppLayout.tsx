@@ -5,6 +5,7 @@ import { PerplexityAttribution } from "./PerplexityAttribution";
 const navItems = [
   { href: "/", label: "Sermons", icon: Church },
   { href: "/edits", label: "Edits", icon: FileVideo },
+  { href: "/sermon-quotes", label: "Sermon Quotes", icon: ListChecks },
   { href: "/quotes", label: "Quotes", icon: Quote },
   { href: "/workflow", label: "Workflow", icon: BookOpen },
 ];
