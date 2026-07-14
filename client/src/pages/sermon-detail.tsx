@@ -90,6 +90,7 @@ interface QuoteRecord {
     "Video Timecode"?: string;
     "On Website"?: boolean;
     Source?: string;
+    Speaker?: string;
   };
 }
 
@@ -221,6 +222,9 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
                     <Badge variant="outline" className="text-[9px] px-1 py-0">
                       {q.fields["Source"] === "Claude" ? "AI" : "Manual"}
                     </Badge>
+                    {q.fields["Speaker"] && (
+                      <p className="text-[9px] text-muted-foreground">{q.fields["Speaker"]}</p>
+                    )}
                   </div>
                 </div>
               </Card>

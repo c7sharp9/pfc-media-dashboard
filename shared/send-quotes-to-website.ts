@@ -16,6 +16,7 @@ const BRANCH = "main";
 export interface PublishQuote {
   time: string; // "3:35" or "1:04:40"
   text: string;
+  speaker?: string; // attribution, set on podcast quotes only
 }
 
 export interface SendQuotesResult {
@@ -42,6 +43,9 @@ export function buildPullQuotesBlock(quotes: PublishQuote[]): string {
     const text = q.text.trim().replace(/\s+/g, " ").replace(/"/g, "'");
     lines.push(`  - time: "${(q.time || "").trim()}"`);
     lines.push(`    text: "${text}"`);
+    if (q.speaker && q.speaker.trim()) {
+      lines.push(`    speaker: "${q.speaker.trim().replace(/"/g, "'")}"`);
+    }
   }
   return lines.join("\n");
 }

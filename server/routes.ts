@@ -418,6 +418,7 @@ export async function registerRoutes(
         time: r.fields["Video Timecode"] || "",
         text: String(r.fields["Quote Final"] || r.fields["Quote Original"] || "")
           .replace(/<[^>]+>/g, "").trim(),
+        speaker: r.fields["Speaker"] || "",
       })).filter((q: any) => q.text);
       const result = await sendQuotesToWebsite(date, record.fields?.["Title"] || "", quotes);
       res.json(result);
