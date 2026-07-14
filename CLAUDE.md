@@ -111,6 +111,26 @@ grandfathered as Reviewed.
 Endpoints: GET `/api/quotes?date` (no date = whole table), PATCH +
 DELETE `/api/quotes/:id`, POST `/api/sermons/:id/send-quotes`.
 
+## Sermon Prepare (AI descriptions + moment quotes)
+
+The sermon page's **Prepare with AI** button (in the Additional Info header;
+`POST /api/sermons/:id/prepare`, both API layers -> `prepare-sermon`
+repository_dispatch on pfc-website) runs `tools/prepare-sermon.py` in CI:
+fetch transcript (Drive with timecodes/speaker labels -> YouTube captions with
+timecodes preserved), then Claude (claude-sonnet-5) drafts short+long
+descriptions into the sermon's AI fields AND extracts near-verbatim moment
+quotes -- **15 for a Sunday service, 10 for a Wednesday podcast** -- with
+timecodes and speaker attribution into the Quotes table (Source=Claude,
+On Website/Reviewed = false, ready for the Website Quotes review page).
+
+Sermons have NO video processing (they're YouTube), so this writes ONLY to
+Airtable -- no commit, no Stream. Idempotent: descriptions overwrite the AI
+fields (manual wins at publish); quotes seed only when none exist yet for the
+date (protects review work -- pass `--force-quotes` locally to override).
+Note: claude-sonnet-5 emits a thinking block that counts against max_tokens,
+so the quotes call budgets 8000 tokens. After Prepare: review descriptions in
+the sermon workspace, review quotes on the Website Quotes page, then Send each.
+
 ## Send to Website (recap edits)
 
 Recap edits publish in TWO stages (both fire `repository_dispatch` on
