@@ -528,15 +528,15 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 2: Full Service Transcription */}
+            {/* SUNDAY Step 2: Descript Service Transcript */}
             <WorkflowStep
-              title="Full Service Transcription"
+              title="Descript Service Transcript"
               icon={<FileText className="w-3.5 h-3.5" />}
               isComplete={!!fields["Transcription URL"]}
               stepNumber={2}
             >
               <UrlField
-                label="Transcription URL"
+                label="Descript transcript (Drive link)"
                 value={fields["Transcription URL"] || ""}
                 fieldName="Transcription URL"
                 onChange={handleFieldChange}
@@ -671,15 +671,15 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* WEDNESDAY Step 3: Full Service Transcription */}
+            {/* WEDNESDAY Step 3: Descript Service Transcript */}
             <WorkflowStep
-              title="Full Service Transcription"
+              title="Descript Service Transcript"
               icon={<FileText className="w-3.5 h-3.5" />}
               isComplete={!!fields["Transcription URL"]}
               stepNumber={3}
             >
               <UrlField
-                label="Transcription URL"
+                label="Descript transcript (Drive link)"
                 value={fields["Transcription URL"] || ""}
                 fieldName="Transcription URL"
                 onChange={handleFieldChange}
@@ -835,6 +835,20 @@ export default function SermonDetail() {
             collapsedHeight="h-[80px]" className={`text-xs bg-background${fieldRing("optional", fields["Manual Long Description"])}`}
           />
         </div>
+        {fields["AI Service Transcript"] && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">
+              AI Service Transcript
+              <span className="text-[10px] text-muted-foreground/60 ml-1">(Whisper — not verbatim to Descript)</span>
+            </Label>
+            <ExpandTextarea
+              value={fields["AI Service Transcript"] || ""}
+              readOnly
+              collapsedHeight="h-[60px]"
+              className="text-xs bg-background/60 text-muted-foreground"
+            />
+          </div>
+        )}
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">General Notes</Label>
           <Textarea

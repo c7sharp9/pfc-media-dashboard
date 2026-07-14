@@ -486,7 +486,7 @@ export default function EditDetailPage() {
             <UrlRow label="XML (Zipped)" value={fields["XML"] || ""} onChange={(v) => set("XML", v)} level="required" />
             <UrlRow label="Vertical URL" value={fields["Vertical"] || ""} onChange={(v) => set("Vertical", v)} />
             <UrlRow
-              label="Full Service Transcription"
+              label="Descript Service Transcript"
               hint={linkedSermon ? "(saved to sermon)" : "(no linked sermon)"}
               value={transcriptUrl}
               disabled={!linkedSermon}

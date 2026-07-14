@@ -21,6 +21,7 @@ export interface Sermon {
     "Trimmed Video URL"?: string;
     "Audio URL"?: string;
     "Transcription URL"?: string;
+    "AI Service Transcript"?: string;
     "YouTube Trimmed URL"?: string;
     "YouTube Title"?: string;
     "YouTube Hidden"?: boolean;
