@@ -148,8 +148,13 @@ Editing writes to the **Manual** field (manual wins at publish), so a re-Prepare
 never clobbers a revision; the AI draft shows underneath with one-click revert.
 `Descriptions Reviewed` (checkbox field) drives a Needs-review/Reviewed badge
 and the "Needs review" tab; a successful **Send to Website** (or the inline
-checkbox) marks it reviewed. A **Missing** tab surfaces sermons with no short
-description yet (need Prepare). Only the first ~6 unreviewed cards auto-open
+checkbox) marks it reviewed. A **Missing** tab surfaces IN-SCOPE sermons with no short description yet
+(need Prepare). **`Skip Website`** (checkbox) marks out-of-scope messages --
+no descriptions needed, not sent to the site; they drop out of All/Needs
+review/Missing and live under a **Skipped** tab (un-skip via the footer
+checkbox). New sermons default OFF (on the website). Scope rule at backfill:
+in-scope = 2026 OR has a recap (recaps match by broadcast date); this marked
+311 of 391 skipped, shrinking the real backlog to ~32. Only the first ~6 unreviewed cards auto-open
 (390 open cards = too many textareas). `GET /api/sermons/all` added to BOTH API
 layers.
 

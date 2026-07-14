@@ -157,6 +157,12 @@ export default function DescriptionsReviewPage() {
   const needle = q.trim().toLowerCase();
   const filtered = useMemo(() => {
     return (data?.records || []).filter((s) => {
+      const skip = !!s.fields["Skip Website"];
+      if (tab === "skipped") {
+        if (!skip) return false;
+      } else if (skip) {
+        return false; // out of scope: hidden from All / Needs review / Missing
+      }
       const reviewed = !!s.fields["Descriptions Reviewed"];
       const hasShort = !!eff(s, "Short").trim();
       if (tab === "unreviewed" && reviewed) return false;
@@ -176,7 +182,7 @@ export default function DescriptionsReviewPage() {
     // every card would mount hundreds of textareas at once.
     const initial: Record<string, boolean> = {};
     (data.records || [])
-      .filter((s) => !s.fields["Descriptions Reviewed"])
+      .filter((s) => !s.fields["Descriptions Reviewed"] && !s.fields["Skip Website"])
       .slice(0, 6)
       .forEach((s) => (initial[s.id] = true));
     setOpen(initial);
@@ -207,6 +213,7 @@ export default function DescriptionsReviewPage() {
             <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
             <TabsTrigger value="unreviewed" className="text-xs">Needs review</TabsTrigger>
             <TabsTrigger value="missing" className="text-xs">Missing</TabsTrigger>
+            <TabsTrigger value="skipped" className="text-xs">Skipped</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="flex items-center gap-1 ml-auto">
@@ -240,8 +247,10 @@ export default function DescriptionsReviewPage() {
           {tab === "unreviewed"
             ? "Nothing awaiting review. All caught up."
             : tab === "missing"
-              ? "Every message has a short description."
-              : "No messages match."}
+              ? "Every in-scope message has a short description."
+              : tab === "skipped"
+                ? "Nothing skipped."
+                : "No messages match."}
         </p>
       ) : (
         <div className="space-y-2">
@@ -308,6 +317,15 @@ export default function DescriptionsReviewPage() {
                             onChange={(e) => patch(s.id, { "Descriptions Reviewed": e.target.checked })}
                           />
                           Reviewed
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground" title="Out of scope for the new website (no descriptions, not sent)">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 accent-muted-foreground cursor-pointer"
+                            checked={!!s.fields["Skip Website"]}
+                            onChange={(e) => patch(s.id, { "Skip Website": e.target.checked })}
+                          />
+                          Skip website
                         </label>
                       </div>
                       <Button

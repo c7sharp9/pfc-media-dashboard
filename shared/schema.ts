@@ -12,6 +12,7 @@ export interface Sermon {
     "Long Description"?: string;
     "Manual Long Description"?: string;
     "Descriptions Reviewed"?: boolean;
+    "Skip Website"?: boolean;
     "Sermon URL"?: string;
     "General Notes"?: string;
     "Video URL"?: string;
