@@ -244,6 +244,27 @@ export default async (req: Request, context: Context) => {
 
     // ---- EDITS ----
 
+    // POST /edits/:id/prepare - stage 1 of the recap pipeline (no site page)
+    const prepareMatch = path.match(/^\/edits\/([^/]+)\/prepare$/);
+    if (prepareMatch && req.method === "POST") {
+      const token = process.env.GITHUB_TOKEN || "";
+      if (!token) return json({ error: "GITHUB_TOKEN is not configured on the server." }, 503);
+      const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ event_type: "prepare-recap", client_payload: { editId: prepareMatch[1] } }),
+      });
+      if (gh.status !== 204) {
+        return json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` }, 502);
+      }
+      return json({ ok: true });
+    }
+
     // POST /edits/:id/publish - trigger the pfc-website publish-recap Action
     const publishMatch = path.match(/^\/edits\/([^/]+)\/publish$/);
     if (publishMatch && req.method === "POST") {

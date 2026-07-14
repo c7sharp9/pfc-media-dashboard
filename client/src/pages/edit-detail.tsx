@@ -311,6 +311,21 @@ export default function EditDetailPage() {
       toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const prepareMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/edits/${params.id}/prepare`);
+      return res.json();
+    },
+    onSuccess: () =>
+      toast({
+        title: "Prepare started",
+        description:
+          "Stream upload, transcript, and draft descriptions are running. Refresh in ~10 minutes to review the drafts.",
+      }),
+    onError: (err: Error) =>
+      toast({ title: "Prepare failed", description: err.message, variant: "destructive" }),
+  });
+
   const publishMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/edits/${params.id}/publish`);
@@ -551,24 +566,50 @@ export default function EditDetailPage() {
               </div>
             </div>
             {isRecap && (
-              <div className="space-y-1 pt-1">
-                <Button
-                  size="sm"
-                  className="gap-1.5 h-7 text-xs"
-                  disabled={!fields["Video URL"] || hasChanges || publishMutation.isPending}
-                  onClick={() => publishMutation.mutate()}
-                  data-testid="button-publish-recap"
-                >
-                  <Globe className="w-3 h-3" />
-                  {publishMutation.isPending ? "Starting..." : "Send to Website"}
-                </Button>
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-7 text-xs"
+                    disabled={!fields["Video URL"] || hasChanges || prepareMutation.isPending}
+                    onClick={() => prepareMutation.mutate()}
+                    data-testid="button-prepare-recap"
+                  >
+                    <FileText className="w-3 h-3" />
+                    {prepareMutation.isPending
+                      ? "Starting..."
+                      : fields["Stream ID"]
+                        ? "Re-prepare"
+                        : "Prepare"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5 h-7 text-xs"
+                    disabled={!fields["Video URL"] || hasChanges || publishMutation.isPending}
+                    onClick={() => publishMutation.mutate()}
+                    data-testid="button-publish-recap"
+                  >
+                    <Globe className="w-3 h-3" />
+                    {publishMutation.isPending ? "Starting..." : "Send to Website"}
+                  </Button>
+                  {fields["Stream ID"] && (
+                    <span className="text-[10px] font-medium text-emerald-500">Prepared ✓</span>
+                  )}
+                </div>
                 {hasChanges && (
                   <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
                 )}
                 {!hasChanges && !fields["Video URL"] && (
                   <p className="text-[10px] text-red-400/80">Needs a Video URL.</p>
                 )}
-                {!hasChanges && fields["Video URL"] && !fields["Short Website Description"] && !fields["Manual Short Website Description"] && (
+                {!hasChanges && fields["Video URL"] && !fields["Stream ID"] && (
+                  <p className="text-[10px] text-muted-foreground/70">
+                    Prepare first (~10 min): uploads to Stream, transcribes, and drafts the
+                    descriptions above for review. Send then goes live in about a minute.
+                  </p>
+                )}
+                {!hasChanges && fields["Stream ID"] && !fields["Short Website Description"] && !fields["Manual Short Website Description"] && (
                   <p className="text-[10px] text-muted-foreground/70">
                     No Short Website Description yet; it will publish without a tagline.
                   </p>

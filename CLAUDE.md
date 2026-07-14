@@ -113,15 +113,27 @@ DELETE `/api/quotes/:id`, POST `/api/sermons/:id/send-quotes`.
 
 ## Send to Website (recap edits)
 
-Recap-type edits have their own **Send to Website** button: it POSTs
-`/api/edits/:id/publish`, which fires a `repository_dispatch` (event
-`publish-recap`) on `c7sharp9/pfc-website`. A GitHub Action there runs
-`tools/recap-pipeline.py --edit <id> --apply` in CI (Drive download -> ffmpeg
-1080p 2250kbps -> Cloudflare Stream -> AI captions -> transcript ->
-recaps.json entry) and commits, so the recap is live ~10 minutes after the
-click. Title comes from the edit (or its sermon); the site tagline comes from
-`Short Website Description`. Uses the same `GITHUB_TOKEN`; the Action's own
-secrets (AIRTABLE_PAT, CF_ACCOUNT_ID, CF_STREAM_TOKEN) live on the website repo.
+Recap edits publish in TWO stages (both fire `repository_dispatch` on
+`c7sharp9/pfc-website`; both endpoints exist in BOTH API layers):
+
+1. **Prepare** (`POST /api/edits/:id/prepare`, event `prepare-recap`): Drive
+   download -> ffmpeg 1080p 2250kbps -> Cloudflare Stream -> AI captions ->
+   transcript -> Claude (claude-sonnet-5, ANTHROPIC_API_KEY secret) drafts
+   short+long descriptions into the AUTO fields, writes `Stream ID` +
+   `Transcript` back to the edit. NOTHING goes on the site. ~10 min.
+2. Review the drafts in the edit workspace (manual fields win at publish).
+3. **Send to Website** (`POST /api/edits/:id/publish`, event `publish-recap`):
+   writes src/recaps/<slug>.md from the reviewed fields. A prepared edit
+   (Stream ID present) reuses the video -- live in ~1 minute, no reprocessing,
+   no orphaned Stream copies on re-sends. Unprepared edits still run the full
+   pipeline (legacy path).
+
+All 35 pre-existing recaps were backfilled (2026-07-13) with descriptions +
+Stream IDs from the site files, so the whole back catalog is "prepared" and
+re-publishes are non-destructive. Re-prepare regenerates the AUTO drafts (it
+overwrites them -- manual fields are the safe place for human copy). The
+Action's secrets (AIRTABLE_PAT, CF_ACCOUNT_ID, CF_STREAM_TOKEN,
+ANTHROPIC_API_KEY) live on the website repo; the dispatch uses GITHUB_TOKEN.
 
 ## Path Aliases
 
