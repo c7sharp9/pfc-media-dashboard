@@ -249,6 +249,14 @@ export default async (req: Request, context: Context) => {
     if (sermonPrepMatch && req.method === "POST") {
       const token = process.env.GITHUB_TOKEN || "";
       if (!token) return json({ error: "GITHUB_TOKEN is not configured on the server." }, 503);
+      // Prepare runs in CI where YouTube captions can't be fetched, so it needs
+      // the Descript transcript (Transcription URL) already in Airtable.
+      const rec = await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sermonPrepMatch[1]}`);
+      if (!(rec?.fields?.["Transcription URL"] || "").trim()) {
+        return json({
+          error: "No transcript yet. Prepare needs the Descript transcription (the Transcription URL field) — it usually lands within a day of the service. Re-run once it's in.",
+        }, 422);
+      }
       const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
         method: "POST",
         headers: {

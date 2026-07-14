@@ -127,6 +127,14 @@ Sermons have NO video processing (they're YouTube), so this writes ONLY to
 Airtable -- no commit, no Stream. Idempotent: descriptions overwrite the AI
 fields (manual wins at publish); quotes seed only when none exist yet for the
 date (protects review work -- pass `--force-quotes` locally to override).
+**Transcript gate:** Prepare runs in CI, where YouTube captions CANNOT be
+fetched (YouTube blocks GitHub's datacenter IPs; we never use cookies). So the
+`/api/sermons/:id/prepare` endpoint pre-checks for a `Transcription URL`
+(the Descript transcript) and returns 422 with a friendly message if it's
+missing -- a freshly logged service must wait for its Descript transcription
+(usually within a day). The script itself exits 0 (no failure email) on a
+NoTranscript condition. For immediacy on a fresh service, prepare-sermon.py
+can be run LOCALLY (residential IP fetches YouTube captions fine).
 Note: claude-sonnet-5 emits a thinking block that counts against max_tokens,
 so the quotes call budgets 8000 tokens. After Prepare: review descriptions in
 the sermon workspace, review quotes on the Website Quotes page, then Send each.

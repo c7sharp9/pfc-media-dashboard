@@ -599,6 +599,16 @@ export async function registerRoutes(
     try {
       const token = process.env.GITHUB_TOKEN || "";
       if (!token) return res.status(503).json({ error: "GITHUB_TOKEN is not configured on the server." });
+      // Prepare runs in CI, where YouTube captions can't be fetched (datacenter
+      // IP block). So it needs the Descript transcript to already be in Airtable.
+      if (!useSampleData) {
+        const rec = await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`);
+        if (!(rec?.fields?.["Transcription URL"] || "").trim()) {
+          return res.status(422).json({
+            error: "No transcript yet. Prepare needs the Descript transcription (the Transcription URL field) — it usually lands within a day of the service. Re-run once it's in.",
+          });
+        }
+      }
       const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
         method: "POST",
         headers: {
