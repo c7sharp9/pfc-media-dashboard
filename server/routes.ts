@@ -603,9 +603,11 @@ export async function registerRoutes(
       // IP block). So it needs the Descript transcript to already be in Airtable.
       if (!useSampleData) {
         const rec = await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`);
-        if (!(rec?.fields?.["Transcription URL"] || "").trim()) {
+        const hasTranscript = (rec?.fields?.["Transcription URL"] || "").trim();
+        const hasAudio = (rec?.fields?.["Audio URL"] || rec?.fields?.["Trimmed Audio"] || "").trim();
+        if (!hasTranscript && !hasAudio) {
           return res.status(422).json({
-            error: "No transcript yet. Prepare needs the Descript transcription (the Transcription URL field) — it usually lands within a day of the service. Re-run once it's in.",
+            error: "No transcript or audio yet. Prepare needs either the Descript transcription or an Audio file (it'll transcribe the audio with Whisper). Add one and re-run.",
           });
         }
       }

@@ -252,9 +252,11 @@ export default async (req: Request, context: Context) => {
       // Prepare runs in CI where YouTube captions can't be fetched, so it needs
       // the Descript transcript (Transcription URL) already in Airtable.
       const rec = await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sermonPrepMatch[1]}`);
-      if (!(rec?.fields?.["Transcription URL"] || "").trim()) {
+      const hasTranscript = (rec?.fields?.["Transcription URL"] || "").trim();
+      const hasAudio = (rec?.fields?.["Audio URL"] || rec?.fields?.["Trimmed Audio"] || "").trim();
+      if (!hasTranscript && !hasAudio) {
         return json({
-          error: "No transcript yet. Prepare needs the Descript transcription (the Transcription URL field) — it usually lands within a day of the service. Re-run once it's in.",
+          error: "No transcript or audio yet. Prepare needs either the Descript transcription or an Audio file (it'll transcribe the audio with Whisper). Add one and re-run.",
         }, 422);
       }
       const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
