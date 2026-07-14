@@ -353,7 +353,9 @@ export default function WebsiteQuotesPage() {
                           }}
                         >
                           <Globe className="w-3 h-3" />
-                          {isSending ? "Sending..." : `Send ${checkedCount} to Website`}
+                          {isSending
+                            ? "Sending..."
+                            : `${quotes.some((r) => r.fields["Reviewed"]) ? "Re-send" : "Send"} ${checkedCount} to Website`}
                         </Button>
                       </div>
                     )}

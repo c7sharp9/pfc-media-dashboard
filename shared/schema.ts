@@ -47,6 +47,7 @@ export interface Edit {
     "Vertical"?: string;
     "Transcript"?: string;
     "Stream ID"?: string;
+    "Recap URL"?: string;
     "JA Notes"?: string;
     "Editors Notes"?: string;
     "Date Posted"?: string;
@@ -115,6 +116,7 @@ export const createEditSchema = z.object({
   "Video URL": z.string().url().optional().or(z.literal("")),
   "Transcript": z.string().optional(),
   "Stream ID": z.string().optional(),
+  "Recap URL": z.string().optional(),
   "JA Notes": z.string().optional(),
   "Editors Notes": z.string().optional(),
   "Sermon Link": z.array(z.string()).optional(),

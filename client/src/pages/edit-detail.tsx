@@ -517,7 +517,7 @@ export default function EditDetailPage() {
         {/* Right: website + notes */}
         <div className="space-y-3">
           <SectionCard title="Website">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 gap-2.5">
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">Short Website Description</Label>
@@ -591,10 +591,24 @@ export default function EditDetailPage() {
                     data-testid="button-publish-recap"
                   >
                     <Globe className="w-3 h-3" />
-                    {publishMutation.isPending ? "Starting..." : "Send to Website"}
+                    {publishMutation.isPending
+                      ? "Starting..."
+                      : fields["Recap URL"]
+                        ? "Re-send to Website"
+                        : "Send to Website"}
                   </Button>
                   {fields["Stream ID"] && (
                     <span className="text-[10px] font-medium text-emerald-500">Prepared ✓</span>
+                  )}
+                  {fields["Recap URL"] && (
+                    <a
+                      href={fields["Recap URL"]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-medium text-emerald-500 hover:underline"
+                    >
+                      On the website ↗
+                    </a>
                   )}
                 </div>
                 {hasChanges && (

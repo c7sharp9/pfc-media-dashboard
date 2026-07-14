@@ -177,7 +177,11 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
             data-testid="button-send-quotes"
           >
             <Globe className="w-3 h-3" />
-            {sendQuotesMutation.isPending ? "Sending..." : "Send Quotes to Website"}
+            {sendQuotesMutation.isPending
+              ? "Sending..."
+              : quotes.some((q) => (q.fields as any)["Reviewed"])
+                ? "Re-send Quotes to Website"
+                : "Send Quotes to Website"}
           </Button>
         </div>
       </div>
@@ -591,7 +595,11 @@ export default function SermonDetail() {
                   data-testid="button-send-to-website"
                 >
                   <Globe className="w-3 h-3" />
-                  {sendMutation.isPending ? "Sending..." : "Send to Website"}
+                  {sendMutation.isPending
+                    ? "Sending..."
+                    : fields["Sermon URL"]
+                      ? "Re-send to Website"
+                      : "Send to Website"}
                 </Button>
                 {hasChanges && (
                   <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
@@ -717,7 +725,11 @@ export default function SermonDetail() {
                   data-testid="button-send-to-website"
                 >
                   <Globe className="w-3 h-3" />
-                  {sendMutation.isPending ? "Sending..." : "Send to Website"}
+                  {sendMutation.isPending
+                    ? "Sending..."
+                    : fields["Sermon URL"]
+                      ? "Re-send to Website"
+                      : "Send to Website"}
                 </Button>
                 {hasChanges && (
                   <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
