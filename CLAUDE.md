@@ -39,7 +39,7 @@ Requires `AIRTABLE_PAT` env var for live data. Without it, the server falls back
 ```
 client/           # React SPA
   src/
-    pages/        # sermons-list, sermon-detail, edits, workflow, not-found
+    pages/        # sermons-list, sermon-detail, edits (list), edit-detail, website-quotes (review), quotes (browse), workflow, not-found
     components/   # AppLayout, UI components (shadcn/Radix)
     hooks/        # Custom React hooks
     lib/          # Utilities
@@ -101,15 +101,15 @@ tied to sermons) and **OG** (733 legacy hand-logged social one-liners, date +
 quote only -- not part of the website pipeline). The **Quotes page** (/quotes)
 is display-only browsing for the team: toggle chips for Sermon Quotes (only
 the KEPT/On Website ones) and OG Quotes, search, one-click copy.
-The **Sermon Quotes page** (/sermon-quotes) is the review workspace: collapsible per-date
+The **Website Quotes page** (/website-quotes) is the review workspace: collapsible per-date
 groups (unreviewed open by default), inline On Website checkboxes + editable
 Final, per-group Send, Expand/Collapse all, Unreviewed filter, one-click copy
 for marketing. `Reviewed` (checkbox) is set on EVERY quote of a date by a
 successful send -- a send IS the review; quotes seeded later arrive
 unreviewed and flip the group back to Needs review. Legacy manual quotes were
 grandfathered as Reviewed.
-Endpoints: GET `/api/quotes?date` (no date = whole table), PATCH
-`/api/quotes/:id`, POST `/api/sermons/:id/send-quotes`.
+Endpoints: GET `/api/quotes?date` (no date = whole table), PATCH +
+DELETE `/api/quotes/:id`, POST `/api/sermons/:id/send-quotes`.
 
 ## Send to Website (recap edits)
 

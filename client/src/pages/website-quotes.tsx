@@ -110,7 +110,7 @@ function QuoteRow({ q, onPatch }: { q: QuoteRecord; onPatch: (id: string, fields
   );
 }
 
-export default function SermonQuotesPage() {
+export default function WebsiteQuotesPage() {
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
@@ -238,7 +238,7 @@ export default function SermonQuotesPage() {
     <div className="p-3 md:p-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-base font-semibold text-foreground">Quotes</h1>
+          <h1 className="text-base font-semibold text-foreground">Website Quotes</h1>
           <p className="text-xs text-muted-foreground">
             The website pipeline: review, revise, and send each service's quotes to its message page.
           </p>

@@ -1,11 +1,10 @@
 import { Link, useLocation } from "wouter";
 import { Church, FileVideo, ListChecks, BookOpen, Quote } from "lucide-react";
-import { PerplexityAttribution } from "./PerplexityAttribution";
 
 const navItems = [
   { href: "/", label: "Sermons", icon: Church },
   { href: "/edits", label: "Edits", icon: FileVideo },
-  { href: "/sermon-quotes", label: "Sermon Quotes", icon: ListChecks },
+  { href: "/website-quotes", label: "Website Quotes", icon: ListChecks },
   { href: "/quotes", label: "Quotes", icon: Quote },
   { href: "/workflow", label: "Workflow", icon: BookOpen },
 ];
@@ -66,9 +65,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-2 border-t border-border">
-          <PerplexityAttribution />
-        </div>
       </aside>
 
       {/* Mobile bottom nav */}

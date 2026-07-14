@@ -429,6 +429,22 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/quotes/:id", async (req, res) => {
+    try {
+      if (useSampleData) {
+        return res.status(503).json({ error: "Airtable is not connected (sample data mode)." });
+      }
+      const data = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}/${req.params.id}`,
+        { method: "DELETE" }
+      );
+      res.json(data);
+    } catch (err: any) {
+      console.error("Error deleting quote:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Publish the checked quotes for this sermon's date to the website page.
   // Re-clicking replaces the live set (this is also the "update" button).
   app.post("/api/sermons/:id/send-quotes", async (req, res) => {

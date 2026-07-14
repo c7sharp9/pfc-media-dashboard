@@ -8,9 +8,10 @@ import AppLayout from "@/components/AppLayout";
 import SermonsList from "@/pages/sermons-list";
 import SermonDetail from "@/pages/sermon-detail";
 import EditsPage from "@/pages/edits";
+import EditDetailPage from "@/pages/edit-detail";
 import WorkflowPage from "@/pages/workflow";
 import QuotesBrowsePage from "@/pages/quotes";
-import SermonQuotesPage from "@/pages/sermon-quotes";
+import WebsiteQuotesPage from "@/pages/website-quotes";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -28,9 +29,9 @@ function AppRouter() {
       <Switch>
         <Route path="/" component={SermonsList} />
         <Route path="/edits" component={EditsPage} />
-        <Route path="/edits/:id" component={EditsPage} />
+        <Route path="/edits/:id" component={EditDetailPage} />
         <Route path="/quotes" component={QuotesBrowsePage} />
-        <Route path="/sermon-quotes" component={SermonQuotesPage} />
+        <Route path="/website-quotes" component={WebsiteQuotesPage} />
         <Route path="/workflow" component={WorkflowPage} />
         <Route path="/sermon/:id" component={SermonDetail} />
         <Route component={NotFound} />

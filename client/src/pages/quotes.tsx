@@ -1,12 +1,13 @@
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Copy, Check, Clock, Shuffle } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Search, Copy, Check, Clock, Shuffle, Trash2 } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { formatLongDate } from "@/lib/utils";
 
 // Display-only quote browsing for the team: read, search, copy. No editing,
@@ -95,6 +96,7 @@ function ToggleChip({
 type SortMode = "newest" | "oldest" | "random";
 
 export default function QuotesBrowsePage() {
+  const { toast } = useToast();
   const [q, setQ] = useState("");
   const [showSermon, setShowSermon] = useState(true);
   const [showOG, setShowOG] = useState(true);
@@ -147,6 +149,19 @@ export default function QuotesBrowsePage() {
     });
     return m;
   }, [sermonQueries]);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/quotes/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes", "all"] });
+      toast({ title: "Deleted", description: "The quote is gone from Airtable." });
+    },
+    onError: (error: Error) =>
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" }),
+  });
 
   const needle = q.trim().toLowerCase();
   const quotes = useMemo(() => {
@@ -268,7 +283,22 @@ export default function QuotesBrowsePage() {
                     {isOG && <span className="uppercase tracking-wide text-[9px] text-muted-foreground/60">OG</span>}
                   </p>
                 </div>
-                <CopyButton text={text} />
+                <div className="flex items-center shrink-0">
+                  <CopyButton text={text} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-muted-foreground/50 hover:text-destructive"
+                    aria-label="Delete quote"
+                    onClick={() => {
+                      if (confirm(`Delete this quote permanently?\n\n"${text.slice(0, 80)}..."`)) {
+                        deleteMutation.mutate(r.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
             );
           })}

@@ -147,6 +147,13 @@ export default async (req: Request, context: Context) => {
 
     // PATCH /quotes/:id — update Quote Final / On Website / etc.
     const quoteMatch = path.match(/^\/quotes\/([^/]+)$/);
+    if (quoteMatch && req.method === "DELETE") {
+      const data = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}/${quoteMatch[1]}`,
+        { method: "DELETE" }
+      );
+      return json(data);
+    }
     if (quoteMatch && req.method === "PATCH") {
       const body = await req.json();
       const data = await airtableFetch(
