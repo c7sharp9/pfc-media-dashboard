@@ -139,6 +139,20 @@ Note: claude-sonnet-5 emits a thinking block that counts against max_tokens,
 so the quotes call budgets 8000 tokens. After Prepare: review descriptions in
 the sermon workspace, review quotes on the Website Quotes page, then Send each.
 
+## Descriptions review (/descriptions)
+
+The **Descriptions** page is the sibling of Website Quotes for sermon copy: one
+collapsible card per sermon (all 390, newest first, via `GET /api/sermons/all`
+-- lean field set), each showing the SHORT (125 counter) + LONG description.
+Editing writes to the **Manual** field (manual wins at publish), so a re-Prepare
+never clobbers a revision; the AI draft shows underneath with one-click revert.
+`Descriptions Reviewed` (checkbox field) drives a Needs-review/Reviewed badge
+and the "Needs review" tab; a successful **Send to Website** (or the inline
+checkbox) marks it reviewed. A **Missing** tab surfaces sermons with no short
+description yet (need Prepare). Only the first ~6 unreviewed cards auto-open
+(390 open cards = too many textareas). `GET /api/sermons/all` added to BOTH API
+layers.
+
 ## Send to Website (recap edits)
 
 Recap edits publish in TWO stages (both fire `repository_dispatch` on

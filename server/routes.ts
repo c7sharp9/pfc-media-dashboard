@@ -328,6 +328,18 @@ export async function registerRoutes(
     }
   });
 
+  // All sermons, newest first (Descriptions review page)
+  app.get("/api/sermons/all", async (req, res) => {
+    try {
+      if (useSampleData) return res.json({ records: SAMPLE_SERMONS });
+      const records = await fetchAllRecords(SERMON_TABLE, "sort%5B0%5D%5Bfield%5D=Service&sort%5B0%5D%5Bdirection%5D=desc&fields%5B%5D=Title&fields%5B%5D=Service&fields%5B%5D=Platform&fields%5B%5D=Short%20Description&fields%5B%5D=Manual%20Short%20Description&fields%5B%5D=Long%20Description&fields%5B%5D=Manual%20Long%20Description&fields%5B%5D=Descriptions%20Reviewed&fields%5B%5D=Sermon%20URL");
+      res.json({ records });
+    } catch (err: any) {
+      console.error("Error fetching all sermons:", err.message);
+      res.json({ records: [] });
+    }
+  });
+
   app.get("/api/sermons/:id", async (req, res) => {
     try {
       if (useSampleData) {

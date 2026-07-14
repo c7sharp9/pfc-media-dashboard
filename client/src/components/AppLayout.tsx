@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { Church, FileVideo, ListChecks, BookOpen, Quote } from "lucide-react";
+import { Church, FileVideo, ListChecks, BookOpen, Quote, FileText } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Sermons", icon: Church },
   { href: "/edits", label: "Edits", icon: FileVideo },
   { href: "/website-quotes", label: "Website Quotes", icon: ListChecks },
+  { href: "/descriptions", label: "Descriptions", icon: FileText },
   { href: "/quotes", label: "Quotes", icon: Quote },
   { href: "/workflow", label: "Workflow", icon: BookOpen },
 ];

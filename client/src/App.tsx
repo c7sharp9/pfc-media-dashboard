@@ -12,6 +12,7 @@ import EditDetailPage from "@/pages/edit-detail";
 import WorkflowPage from "@/pages/workflow";
 import QuotesBrowsePage from "@/pages/quotes";
 import WebsiteQuotesPage from "@/pages/website-quotes";
+import DescriptionsReviewPage from "@/pages/descriptions-review";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 
@@ -32,6 +33,7 @@ function AppRouter() {
         <Route path="/edits/:id" component={EditDetailPage} />
         <Route path="/quotes" component={QuotesBrowsePage} />
         <Route path="/website-quotes" component={WebsiteQuotesPage} />
+      <Route path="/descriptions" component={DescriptionsReviewPage} />
         <Route path="/workflow" component={WorkflowPage} />
         <Route path="/sermon/:id" component={SermonDetail} />
         <Route component={NotFound} />
