@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,7 @@ export default function DescriptionsReviewPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [defaultsSet, setDefaultsSet] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const pendingPatches = useRef(0);
 
   const { data, isLoading } = useQuery<{ records: Sermon[] }>({
     queryKey: ["/api/sermons/all"],
@@ -123,6 +124,8 @@ export default function DescriptionsReviewPage() {
       const res = await apiRequest("PATCH", `/api/sermons/${id}`, fields);
       return res.json();
     },
+    onMutate: () => { pendingPatches.current++; },
+    onSettled: () => { pendingPatches.current--; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/sermons/all"] }),
     onError: (error: Error) =>
       toast({ title: "Error", description: error.message, variant: "destructive" }),
@@ -151,6 +154,19 @@ export default function DescriptionsReviewPage() {
       toast({ title: "Send failed", description: error.message, variant: "destructive" }),
     onSettled: () => setSendingId(null),
   });
+
+  // Send only after any in-progress edit has been saved to Airtable, or the
+  // send would read the pre-edit value (site would come back "unchanged").
+  const handleSend = async (id: string) => {
+    (document.activeElement as HTMLElement | null)?.blur?.(); // fires the field's onBlur save
+    await new Promise((r) => setTimeout(r, 40)); // let onBlur kick off its patch
+    const start = Date.now();
+    while (pendingPatches.current > 0 && Date.now() - start < 6000) {
+      await new Promise((r) => setTimeout(r, 40));
+    }
+    setSendingId(id);
+    sendMutation.mutate(id);
+  };
 
   const eff = (s: Sermon, key: "Short" | "Long") =>
     key === "Short"
@@ -321,10 +337,7 @@ export default function DescriptionsReviewPage() {
                         size="sm"
                         className="gap-1.5 h-7 text-xs"
                         disabled={sendMutation.isPending}
-                        onClick={() => {
-                          setSendingId(s.id);
-                          sendMutation.mutate(s.id);
-                        }}
+                        onClick={() => handleSend(s.id)}
                         data-testid={`button-send-desc-${s.id}`}
                       >
                         <Globe className="w-3 h-3" />
