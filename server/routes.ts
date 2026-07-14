@@ -450,6 +450,19 @@ export async function registerRoutes(
         speaker: r.fields["Speaker"] || "",
       })).filter((q: any) => q.text);
       const result = await sendQuotesToWebsite(date, record.fields?.["Title"] || "", quotes);
+      // A send IS the review: mark every quote for this date reviewed
+      // (including the unchecked ones -- leaving them off was the decision).
+      const allFormula = encodeURIComponent(`AND(DATESTR({Service Date})='${date}',{Reviewed}=0)`);
+      const allData = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${allFormula}&pageSize=100&fields%5B%5D=Reviewed`
+      );
+      const toMark = (allData.records || []).map((r: any) => ({ id: r.id, fields: { Reviewed: true } }));
+      for (let i = 0; i < toMark.length; i += 10) {
+        await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}`, {
+          method: "PATCH",
+          body: JSON.stringify({ records: toMark.slice(i, i + 10) }),
+        });
+      }
       res.json(result);
     } catch (err: any) {
       console.error("Error sending quotes to website:", err.message);

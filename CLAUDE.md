@@ -96,8 +96,15 @@ quotes removes the section; idempotent when nothing changed. Targets: ~15
 quotes per service, ~10 per podcast -- Jonathan thins them editorially.
 Co-host (Steve) lines are fair game on podcasts, held to the same near-verbatim
 quality bar as Gary's.
-Endpoints: GET `/api/quotes?date`, PATCH `/api/quotes/:id`,
-POST `/api/sermons/:id/send-quotes`.
+The **Quotes page** (/quotes) is the review workspace: collapsible per-date
+groups (unreviewed open by default), inline On Website checkboxes + editable
+Final, per-group Send, Expand/Collapse all, Unreviewed filter, one-click copy
+for marketing. `Reviewed` (checkbox) is set on EVERY quote of a date by a
+successful send -- a send IS the review; quotes seeded later arrive
+unreviewed and flip the group back to Needs review. Legacy manual quotes were
+grandfathered as Reviewed.
+Endpoints: GET `/api/quotes?date` (no date = whole table), PATCH
+`/api/quotes/:id`, POST `/api/sermons/:id/send-quotes`.
 
 ## Send to Website (recap edits)
 
