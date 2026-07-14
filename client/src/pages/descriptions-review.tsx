@@ -110,6 +110,8 @@ export default function DescriptionsReviewPage() {
   const [defaultsSet, setDefaultsSet] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const pendingPatches = useRef(0);
+  // Sermons edited this session but not yet sent to the site.
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery<{ records: Sermon[] }>({
     queryKey: ["/api/sermons/all"],
@@ -126,7 +128,13 @@ export default function DescriptionsReviewPage() {
     },
     onMutate: () => { pendingPatches.current++; },
     onSettled: () => { pendingPatches.current--; },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/sermons/all"] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons/all"] });
+      const keys = Object.keys(variables.fields);
+      if (keys.some((k) => k === "Manual Short Description" || k === "Manual Long Description")) {
+        setDirtyIds((prev) => new Set(prev).add(variables.id));
+      }
+    },
     onError: (error: Error) =>
       toast({ title: "Error", description: error.message, variant: "destructive" }),
   });
@@ -142,6 +150,7 @@ export default function DescriptionsReviewPage() {
     onSuccess: (result: { id: string; status: string }) => {
       // Publishing counts as reviewed, same as the quotes flow.
       patch(result.id, { "Descriptions Reviewed": true });
+      setDirtyIds((prev) => { const n = new Set(prev); n.delete(result.id); return n; });
       toast({
         title: result.status === "unchanged" ? "Already up to date" : "Sent to website",
         description:
@@ -277,6 +286,11 @@ export default function DescriptionsReviewPage() {
                   </span>
                   {date && <span className="text-[11px] text-muted-foreground shrink-0">{formatLongDate(date)}</span>}
                   <span className="ml-auto" />
+                  {dirtyIds.has(s.id) && (
+                    <Badge className="text-[9px] px-1.5 py-0 bg-primary/15 text-primary border-primary/40 gap-1" variant="outline">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" /> Unpublished
+                    </Badge>
+                  )}
                   {reviewed ? (
                     <Badge className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-500 border-emerald-500/30" variant="outline">
                       Reviewed
