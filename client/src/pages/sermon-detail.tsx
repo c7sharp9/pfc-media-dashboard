@@ -541,7 +541,7 @@ export default function SermonDetail() {
                 fieldName="Transcription URL"
                 onChange={handleFieldChange}
                 placeholder="google drive link"
-                required
+                level="wanted"
               />
             </WorkflowStep>
 
@@ -683,7 +683,7 @@ export default function SermonDetail() {
                 value={fields["Transcription URL"] || ""}
                 fieldName="Transcription URL"
                 onChange={handleFieldChange}
-                required
+                level="wanted"
               />
             </WorkflowStep>
 

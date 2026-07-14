@@ -70,6 +70,7 @@ export function UrlField({
   onChange,
   placeholder,
   required,
+  level,
 }: {
   label: string;
   value: string;
@@ -77,7 +78,10 @@ export function UrlField({
   onChange: (field: string, value: string) => void;
   placeholder?: string;
   required?: boolean;
+  // Overrides `required`: "wanted" = yellow (nice-to-have, not blocking).
+  level?: "required" | "wanted" | "optional";
 }) {
+  const ring = level ? fieldRing(level, value) : requiredClass(required, value);
   return (
     <div className="space-y-1">
       <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -87,7 +91,7 @@ export function UrlField({
           placeholder={placeholder || `Enter ${label.toLowerCase()}...`}
           value={value || ""}
           onChange={(e) => onChange(fieldName, e.target.value)}
-          className={`text-xs h-8 bg-background${requiredClass(required, value)}`}
+          className={`text-xs h-8 bg-background${ring}`}
           data-testid={`input-${fieldName.replace(/\s+/g, "-").toLowerCase()}`}
         />
         {value && <OpenLinkButton url={value} label={`Open ${label.toLowerCase()}`} />}
