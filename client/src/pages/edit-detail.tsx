@@ -49,6 +49,14 @@ function CharCount({ value }: { value?: string }) {
   );
 }
 
+// Progress tint mirroring the sermon page's complete/incomplete language:
+// amber while pending, emerald once done.
+function doneRing(done: boolean): string {
+  return done
+    ? " border-emerald-500/60 focus-visible:ring-emerald-500/20"
+    : " border-amber-500/60 focus-visible:ring-amber-500/20";
+}
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card className="p-3 space-y-2.5">
@@ -401,13 +409,13 @@ export default function EditDetailPage() {
                 <Input
                   value={fields["Editor Name"] || ""}
                   onChange={(e) => set("Editor Name", e.target.value)}
-                  className={`text-xs h-8 bg-background${requiredClass(true, fields["Editor Name"])}`}
+                  className="text-xs h-8 bg-background"
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Status</Label>
                 <Select value={fields["Status"] || ""} onValueChange={(v) => set("Status", v)}>
-                  <SelectTrigger className={`text-xs h-8 bg-background${requiredClass(true, fields["Status"])}`}>
+                  <SelectTrigger className={`text-xs h-8 bg-background${doneRing(fields["Status"] === "Completed")}`}>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -433,7 +441,7 @@ export default function EditDetailPage() {
                   type="date"
                   value={fields["Date Completed"] || ""}
                   onChange={(e) => set("Date Completed", e.target.value || null)}
-                  className="text-xs h-8 bg-background"
+                  className={`text-xs h-8 bg-background${doneRing(!!fields["Date Completed"])}`}
                 />
               </div>
             </div>
@@ -467,8 +475,8 @@ export default function EditDetailPage() {
           </SectionCard>
 
           <SectionCard title="Links">
-            <UrlRow label="Video URL" value={fields["Video URL"] || ""} onChange={(v) => set("Video URL", v)} required />
-            <UrlRow label="XML (Zipped)" value={fields["XML"] || ""} onChange={(v) => set("XML", v)} />
+            <UrlRow label="Video URL" hint="(include version number in file name)" value={fields["Video URL"] || ""} onChange={(v) => set("Video URL", v)} required />
+            <UrlRow label="XML (Zipped)" value={fields["XML"] || ""} onChange={(v) => set("XML", v)} required />
             <UrlRow label="Vertical URL" value={fields["Vertical"] || ""} onChange={(v) => set("Vertical", v)} />
             <UrlRow
               label="Full Service Transcription"
@@ -483,9 +491,10 @@ export default function EditDetailPage() {
             />
             <UrlRow
               label="Final Edit Transcription"
+              hint="(auto-generated when the recap is sent to the website)"
               value={fields["Transcript"] || ""}
               onChange={(v) => set("Transcript", v)}
-              placeholder="Enter transcription URL..."
+              placeholder="Filled by the publish pipeline..."
             />
           </SectionCard>
         </div>

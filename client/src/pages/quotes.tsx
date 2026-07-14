@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatLongDate } from "@/lib/utils";
 
 // Display-only quote browsing for the team: read, search, copy. No editing,
-// no publishing -- that lives on the Sermon Quotes page. Two corpora:
+// no publishing -- that lives on the Website Quotes page. Two corpora:
 //   Sermon Quotes = the website pipeline's KEPT quotes (On Website)
 //   OG Quotes     = the original hand-logged social one-liners (date + quote)
 interface QuoteRecord {

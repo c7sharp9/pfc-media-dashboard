@@ -4,8 +4,8 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Textarea with an expand/collapse button instead of drag-to-resize.
-// Collapsed: compact fixed height (clipped content hints via the button).
-// Expanded: tall enough to read long descriptions without scrolling.
+// Collapsed: compact fixed height. Expanded: sized to fit the content
+// exactly (no dead space), with a small floor so empty boxes look sane.
 type Props = React.ComponentProps<typeof Textarea> & {
   collapsedHeight?: string; // tailwind h class for the collapsed state
 };
@@ -16,13 +16,28 @@ export function ExpandTextarea({
   ...props
 }: Props) {
   const [expanded, setExpanded] = React.useState(false);
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+
+  // Fit-to-content while expanded (re-measures as the user types).
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (expanded) {
+      el.style.height = "auto";
+      el.style.height = Math.max(el.scrollHeight + 2, 72) + "px";
+    } else {
+      el.style.height = "";
+    }
+  }, [expanded, props.value]);
+
   return (
     <div className="relative">
       <Textarea
         {...props}
+        ref={ref}
         className={cn(
-          "resize-none pr-7 transition-[height]",
-          expanded ? "h-56" : collapsedHeight,
+          "resize-none pr-7",
+          !expanded && collapsedHeight,
           className
         )}
       />
