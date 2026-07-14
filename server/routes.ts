@@ -595,6 +595,30 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/sermons/:id/prepare", async (req, res) => {
+    try {
+      const token = process.env.GITHUB_TOKEN || "";
+      if (!token) return res.status(503).json({ error: "GITHUB_TOKEN is not configured on the server." });
+      const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ event_type: "prepare-sermon", client_payload: { sermonId: req.params.id } }),
+      });
+      if (gh.status !== 204) {
+        return res.status(502).json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` });
+      }
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("Error preparing sermon:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/edits/:id/prepare", async (req, res) => {
     try {
       await dispatchRecap("prepare-recap", req.params.id);

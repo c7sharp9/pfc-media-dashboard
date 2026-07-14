@@ -351,6 +351,21 @@ export default function SermonDetail() {
     },
   });
 
+  const prepareMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/sermons/${params.id}/prepare`);
+      return res.json();
+    },
+    onSuccess: () =>
+      toast({
+        title: "Prepare started",
+        description:
+          "Claude is drafting the descriptions and moment quotes from the transcript. Refresh in a few minutes to review.",
+      }),
+    onError: (error: Error) =>
+      toast({ title: "Prepare failed", description: error.message, variant: "destructive" }),
+  });
+
   const handleFieldChange = (fieldName: string, value: any) => {
     setFields((prev) => ({ ...prev, [fieldName]: value }));
     setHasChanges(true);
@@ -759,9 +774,23 @@ export default function SermonDetail() {
 
       {/* Right column — Additional Info & Edits */}
       <div>
-      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-        Additional Info
-      </h2>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Additional Info
+        </h2>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 h-7 text-xs"
+          disabled={prepareMutation.isPending}
+          onClick={() => prepareMutation.mutate()}
+          data-testid="button-prepare-sermon"
+          title="Draft descriptions + moment quotes from the transcript with AI"
+        >
+          <Wand2 className="w-3 h-3" />
+          {prepareMutation.isPending ? "Starting..." : "Prepare with AI"}
+        </Button>
+      </div>
       <div className="space-y-3 mb-4">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
