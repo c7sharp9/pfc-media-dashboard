@@ -253,6 +253,27 @@ export async function registerRoutes(
     }
   });
 
+  // Text search: title or date fragment, newest first (sermons list search box)
+  app.get("/api/sermons/find", async (req, res) => {
+    try {
+      const q = String(req.query.q || "").trim().toLowerCase().replace(/'/g, "\\'");
+      if (!q) return res.json({ records: [] });
+      if (useSampleData) {
+        return res.json({ records: SAMPLE_SERMONS.filter((s) =>
+          (s.fields["Title"] || "").toLowerCase().includes(q)) });
+      }
+      const formula = encodeURIComponent(
+        `OR(SEARCH('${q}', LOWER({Title}&'')), SEARCH('${q}', DATESTR({Service})&''))`
+      );
+      const url = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}?filterByFormula=${formula}&maxRecords=30&sort%5B0%5D%5Bfield%5D=Service&sort%5B0%5D%5Bdirection%5D=desc`;
+      const data = await airtableFetch(url);
+      res.json({ records: data.records || [] });
+    } catch (err: any) {
+      console.error("Error finding sermons:", err.message);
+      res.json({ records: [] });
+    }
+  });
+
   // Search sermons by date + platform (for linking edits)
   app.get("/api/sermons/search", async (req, res) => {
     try {
@@ -370,13 +391,21 @@ export async function registerRoutes(
     try {
       if (useSampleData) return res.json({ records: [] });
       const date = String(req.query.date || "");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return res.status(400).json({ error: "date=YYYY-MM-DD required" });
+      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: "date must be YYYY-MM-DD" });
       }
-      const formula = encodeURIComponent(`DATESTR({Service Date})='${date}'`);
-      const url = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`;
-      const data = await airtableFetch(url);
-      res.json({ records: data.records || [] });
+      // With a date: that service's quotes. Without: the whole table (paged
+      // through Airtable offsets) for the Quotes browsing page.
+      const base = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?pageSize=100` +
+        (date ? `&filterByFormula=${encodeURIComponent(`DATESTR({Service Date})='${date}'`)}` : "");
+      let records: any[] = [];
+      let offset: string | undefined;
+      do {
+        const data = await airtableFetch(base + (offset ? `&offset=${offset}` : ""));
+        records = records.concat(data.records || []);
+        offset = data.offset;
+      } while (offset && records.length < 2000);
+      res.json({ records });
     } catch (err: any) {
       console.error("Error fetching quotes:", err.message);
       res.status(500).json({ error: err.message });

@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { Church, FileVideo, ListChecks, BookOpen } from "lucide-react";
+import { Church, FileVideo, ListChecks, BookOpen, Quote } from "lucide-react";
 import { PerplexityAttribution } from "./PerplexityAttribution";
 
 const navItems = [
   { href: "/", label: "Sermons", icon: Church },
   { href: "/edits", label: "Edits", icon: FileVideo },
+  { href: "/quotes", label: "Quotes", icon: Quote },
   { href: "/workflow", label: "Workflow", icon: BookOpen },
 ];
 

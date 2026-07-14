@@ -1,6 +1,6 @@
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, ChevronRight, ChevronDown, Loader2, Plus } from "lucide-react";
+import { Calendar, ChevronRight, ChevronDown, Loader2, Plus , Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Sermon } from "@shared/schema";
@@ -116,6 +116,12 @@ function SermonRow({ sermon }: { sermon: Sermon }) {
 
 export default function SermonsList() {
   const [filter, setFilter] = useState("all");
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    return () => clearTimeout(id);
+  }, [q]);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -168,10 +174,23 @@ export default function SermonsList() {
   // Flatten all pages into a single list
   const allSermons = data?.pages.flatMap((page) => page.records) || [];
 
+  // Text search takes over the list when active (server-side title/date match)
+  const searching = debouncedQ.length >= 2;
+  const { data: searchData, isFetching: isSearching } = useQuery<{ records: Sermon[] }>({
+    queryKey: ["/api/sermons/find", debouncedQ],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/sermons/find?q=${encodeURIComponent(debouncedQ)}`);
+      return res.json();
+    },
+    enabled: searching,
+  });
+
   const filtered = allSermons.filter((s) => {
     if (filter === "all") return true;
     return s.fields["Platform"]?.toLowerCase() === filter;
   });
+
+  const displayed = searching ? (searchData?.records || []) : filtered;
 
   return (
     <div className="p-3 md:p-4 max-w-5xl mx-auto">
@@ -228,19 +247,31 @@ export default function SermonsList() {
         </Dialog>
       </div>
 
-      <Tabs value={filter} onValueChange={setFilter} className="mb-3">
-        <TabsList className="bg-muted/50">
-          <TabsTrigger value="all" data-testid="filter-all" className="text-xs">
-            All
-          </TabsTrigger>
-          <TabsTrigger value="sunday" data-testid="filter-sunday" className="text-xs">
-            Sunday
-          </TabsTrigger>
-          <TabsTrigger value="wednesday" data-testid="filter-wednesday" className="text-xs">
-            Wednesday
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <Tabs value={filter} onValueChange={setFilter}>
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="all" data-testid="filter-all" className="text-xs">
+              All
+            </TabsTrigger>
+            <TabsTrigger value="sunday" data-testid="filter-sunday" className="text-xs">
+              Sunday
+            </TabsTrigger>
+            <TabsTrigger value="wednesday" data-testid="filter-wednesday" className="text-xs">
+              Wednesday
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative flex-1 min-w-[180px] max-w-xs ml-auto">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search title or date..."
+            className="h-8 pl-8 text-xs bg-card"
+            data-testid="input-sermon-search"
+          />
+        </div>
+      </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         {isLoading ? (
@@ -260,12 +291,12 @@ export default function SermonsList() {
           <div className="p-8 text-center text-sm text-muted-foreground">
             Failed to load sermons. Check the connection to Airtable.
           </div>
-        ) : filtered.length > 0 ? (
+        ) : displayed.length > 0 ? (
           <>
-            {filtered.map((sermon) => (
+            {displayed.map((sermon) => (
               <SermonRow key={sermon.id} sermon={sermon} />
             ))}
-            {hasNextPage && (
+            {!searching && hasNextPage && (
               <div className="flex justify-center py-3">
                 <Button
                   variant="ghost"
@@ -286,7 +317,7 @@ export default function SermonsList() {
           </>
         ) : (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            No sermons found.
+            {searching ? (isSearching ? "Searching..." : `No matches for "${debouncedQ}".`) : "No sermons found."}
           </div>
         )}
       </div>

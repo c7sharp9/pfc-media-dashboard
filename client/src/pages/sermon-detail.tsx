@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ExpandTextarea } from "@/components/ui/expand-textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -204,7 +205,8 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
                   />
                   <div className="flex-1 min-w-0 space-y-1">
                     <p className="text-xs text-foreground leading-snug">&ldquo;{original.replace(/<[^>]+>/g, "")}&rdquo;</p>
-                    <Textarea
+                    <ExpandTextarea
+                      collapsedHeight="h-[34px]"
                       value={finalText.replace(/<[^>]+>/g, "")}
                       onChange={(e) => setDrafts((d) => ({ ...d, [q.id]: e.target.value }))}
                       onBlur={() => {
@@ -214,7 +216,7 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
                         }
                       }}
                       placeholder="Final (optional): your revision wins over the original when filled."
-                      className="text-xs min-h-[30px] bg-background"
+                      className="text-xs bg-background"
                     />
                   </div>
                   <div className="text-right shrink-0 space-y-1">
@@ -754,11 +756,11 @@ export default function SermonDetail() {
             <Label className="text-xs text-muted-foreground">Short Description</Label>
             <CharCount value={fields["Short Description"]} />
           </div>
-          <Textarea
+          <ExpandTextarea
             value={fields["Short Description"] || ""}
             onChange={(e) => handleFieldChange("Short Description", e.target.value.slice(0, SHORT_DESC_MAX))}
             placeholder="Short public description, in our voice. Max 125 characters (two lines on the site)."
-            className="min-h-[60px] text-xs bg-background"
+            collapsedHeight="h-[60px]" className="text-xs bg-background"
             data-testid="input-description"
           />
         </div>
@@ -767,29 +769,29 @@ export default function SermonDetail() {
             <Label className="text-xs text-muted-foreground">Manual Short Description</Label>
             <CharCount value={fields["Manual Short Description"]} />
           </div>
-          <Textarea
+          <ExpandTextarea
             value={fields["Manual Short Description"] || ""}
             onChange={(e) => handleFieldChange("Manual Short Description", e.target.value.slice(0, SHORT_DESC_MAX))}
             placeholder="Optional. If filled, this wins over the generated version at publish."
-            className="min-h-[60px] text-xs bg-background"
+            collapsedHeight="h-[60px]" className="text-xs bg-background"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Long Description</Label>
-          <Textarea
+          <ExpandTextarea
             value={fields["Long Description"] || ""}
             onChange={(e) => handleFieldChange("Long Description", e.target.value)}
             placeholder="Fuller context for the message page. Written from the transcript; no length cap."
-            className="min-h-[80px] text-xs bg-background"
+            collapsedHeight="h-[80px]" className="text-xs bg-background"
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Manual Long Description</Label>
-          <Textarea
+          <ExpandTextarea
             value={fields["Manual Long Description"] || ""}
             onChange={(e) => handleFieldChange("Manual Long Description", e.target.value)}
             placeholder="Optional. If filled, this wins over the generated version at publish."
-            className="min-h-[80px] text-xs bg-background"
+            collapsedHeight="h-[80px]" className="text-xs bg-background"
           />
         </div>
         <div className="space-y-1">

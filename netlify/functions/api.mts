@@ -77,6 +77,19 @@ export default async (req: Request, context: Context) => {
       return json({ records: data.records || [], nextCursor: data.offset || null });
     }
 
+    // GET /sermons/find?q= — text search on title/date, newest first
+    if (path === "/sermons/find" && req.method === "GET") {
+      const q = (url.searchParams.get("q") || "").trim().toLowerCase().replace(/'/g, "\\'");
+      if (!q) return json({ records: [] });
+      const formula = encodeURIComponent(
+        `OR(SEARCH('${q}', LOWER({Title}&'')), SEARCH('${q}', DATESTR({Service})&''))`
+      );
+      const data = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}?filterByFormula=${formula}&maxRecords=30&sort%5B0%5D%5Bfield%5D=Service&sort%5B0%5D%5Bdirection%5D=desc`
+      );
+      return json({ records: data.records || [] });
+    }
+
     // GET /sermons/search?date=YYYY-MM-DD&platform=Sunday|Wednesday
     if (path === "/sermons/search" && req.method === "GET") {
       const date = url.searchParams.get("date");
@@ -117,14 +130,19 @@ export default async (req: Request, context: Context) => {
     // GET /quotes?date=YYYY-MM-DD — all quotes for a service date
     if (path === "/quotes" && req.method === "GET") {
       const date = url.searchParams.get("date") || "";
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return json({ error: "date=YYYY-MM-DD required" }, 400);
+      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return json({ error: "date must be YYYY-MM-DD" }, 400);
       }
-      const formula = encodeURIComponent(`DATESTR({Service Date})='${date}'`);
-      const data = await airtableFetch(
-        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`
-      );
-      return json({ records: data.records || [] });
+      const base = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?pageSize=100` +
+        (date ? `&filterByFormula=${encodeURIComponent(`DATESTR({Service Date})='${date}'`)}` : "");
+      let records: any[] = [];
+      let offset: string | undefined;
+      do {
+        const data = await airtableFetch(base + (offset ? `&offset=${offset}` : ""));
+        records = records.concat(data.records || []);
+        offset = data.offset;
+      } while (offset && records.length < 2000);
+      return json({ records });
     }
 
     // PATCH /quotes/:id — update Quote Final / On Website / etc.

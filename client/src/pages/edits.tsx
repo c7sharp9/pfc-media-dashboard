@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ExpandTextarea } from "@/components/ui/expand-textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -346,6 +347,7 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
 
       {expanded && (
         <div className="border-t border-border p-3 space-y-2.5 bg-card">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">Details</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Title</Label>
@@ -391,6 +393,39 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Date Completed</Label>
+              <Input
+                type="date"
+                value={editFields["Date Completed"] || ""}
+                onChange={(e) => handleFieldChange("Date Completed", e.target.value || null)}
+                className="text-xs h-8 bg-background"
+              />
+            </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Type</Label>
+            <div className="flex gap-4">
+              {["Recap", "Clip", "Sizzle"].map((t) => (
+                <label key={t} className="flex items-center gap-1.5 cursor-pointer">
+                  <Checkbox
+                    checked={(editFields["Type"] || []).includes(t)}
+                    onCheckedChange={(checked) => {
+                      const current = editFields["Type"] || [];
+                      const next = checked
+                        ? [...current, t]
+                        : current.filter((x: string) => x !== t);
+                      handleFieldChange("Type", next);
+                    }}
+                  />
+                  <span className="text-xs text-foreground">{t}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          </div>
+
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 pt-1">Links</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Video URL</Label>
               <div className="flex gap-2">
@@ -476,36 +511,30 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
                 )}
               </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Date Completed</Label>
-              <Input
-                type="date"
-                value={editFields["Date Completed"] || ""}
-                onChange={(e) => handleFieldChange("Date Completed", e.target.value || null)}
-                className="text-xs h-8 bg-background"
-              />
-            </div>
+
           </div>
 
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Edit Description</Label>
-            <Textarea
+            <ExpandTextarea
               value={editFields["Edit Description"] || ""}
               onChange={(e) => handleFieldChange("Edit Description", e.target.value)}
               placeholder="What is this edit? One or two sentences."
-              className="text-xs min-h-[48px] bg-background"
+              collapsedHeight="h-[48px]" className="text-xs bg-background"
             />
           </div>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 pt-1">Website</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Short Website Description</Label>
               <CharCount value={editFields["Short Website Description"]} />
             </div>
-            <Textarea
+            <ExpandTextarea
               value={editFields["Short Website Description"] || ""}
               onChange={(e) => handleFieldChange("Short Website Description", e.target.value.slice(0, SHORT_DESC_MAX))}
               placeholder="One-line tagline for the website. Max 125 characters (two lines on the site)."
-              className="text-xs min-h-[36px] bg-background"
+              collapsedHeight="h-[36px]" className="text-xs bg-background"
             />
           </div>
           <div className="space-y-1">
@@ -513,53 +542,39 @@ function EditCard({ edit, initialExpanded = false }: { edit: Edit; initialExpand
               <Label className="text-xs text-muted-foreground">Manual Short Website Description</Label>
               <CharCount value={editFields["Manual Short Website Description"]} />
             </div>
-            <Textarea
+            <ExpandTextarea
               value={editFields["Manual Short Website Description"] || ""}
               onChange={(e) => handleFieldChange("Manual Short Website Description", e.target.value.slice(0, SHORT_DESC_MAX))}
               placeholder="Optional. If filled, this wins over the generated version at publish."
-              className="text-xs min-h-[36px] bg-background"
+              collapsedHeight="h-[36px]" className="text-xs bg-background"
             />
           </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Long Description</Label>
-            <Textarea
+            <ExpandTextarea
               value={editFields["Long Description"] || ""}
               onChange={(e) => handleFieldChange("Long Description", e.target.value)}
               placeholder="Fuller context for the recap page. Written from the transcript; no length cap."
-              className="text-xs min-h-[64px] bg-background"
+              collapsedHeight="h-[64px]" className="text-xs bg-background"
             />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Manual Long Description</Label>
-            <Textarea
+            <ExpandTextarea
               value={editFields["Manual Long Description"] || ""}
               onChange={(e) => handleFieldChange("Manual Long Description", e.target.value)}
               placeholder="Optional. If filled, this wins over the generated version at publish."
-              className="text-xs min-h-[64px] bg-background"
+              collapsedHeight="h-[64px]" className="text-xs bg-background"
             />
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Type</Label>
-            <div className="flex gap-4">
-              {["Recap", "Clip", "Sizzle"].map((t) => (
-                <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                  <Checkbox
-                    checked={(editFields["Type"] || []).includes(t)}
-                    onCheckedChange={(checked) => {
-                      const current = editFields["Type"] || [];
-                      const next = checked
-                        ? [...current, t]
-                        : current.filter((x: string) => x !== t);
-                      handleFieldChange("Type", next);
-                    }}
-                  />
-                  <span className="text-xs text-foreground">{t}</span>
-                </label>
-              ))}
-            </div>
           </div>
 
+
+
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 pt-1">Notes</p>
           <CollapsibleNotes
             label="JA Notes"
             value={editFields["JA Notes"] || ""}
