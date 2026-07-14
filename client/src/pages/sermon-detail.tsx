@@ -32,7 +32,7 @@ import { SiFacebook } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatLongDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { UrlField, CheckboxField, OpenLinkButton } from "@/components/fields";
+import { UrlField, CheckboxField, OpenLinkButton, fieldRing } from "@/components/fields";
 import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
 import NewEditDialog from "@/components/new-edit-dialog";
 import type { Sermon, Edit } from "@shared/schema";
@@ -765,14 +765,14 @@ export default function SermonDetail() {
       <div className="space-y-3 mb-4">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">Short Description</Label>
+            <Label className="text-xs text-muted-foreground">AI Short Description</Label>
             <CharCount value={fields["Short Description"]} />
           </div>
           <ExpandTextarea
             value={fields["Short Description"] || ""}
             onChange={(e) => handleFieldChange("Short Description", e.target.value.slice(0, SHORT_DESC_MAX))}
             placeholder="Short public description, in our voice. Max 125 characters (two lines on the site)."
-            collapsedHeight="h-[60px]" className="text-xs bg-background"
+            collapsedHeight="h-[60px]" className={`text-xs bg-background${fieldRing("wanted", fields["Short Description"])}`}
             data-testid="input-description"
           />
         </div>
@@ -784,17 +784,17 @@ export default function SermonDetail() {
           <ExpandTextarea
             value={fields["Manual Short Description"] || ""}
             onChange={(e) => handleFieldChange("Manual Short Description", e.target.value.slice(0, SHORT_DESC_MAX))}
-            placeholder="Optional. If filled, this wins over the generated version at publish."
-            collapsedHeight="h-[60px]" className="text-xs bg-background"
+            placeholder="Optional. If filled, this wins over the AI version at publish."
+            collapsedHeight="h-[60px]" className={`text-xs bg-background${fieldRing("optional", fields["Manual Short Description"])}`}
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Long Description</Label>
+          <Label className="text-xs text-muted-foreground">AI Long Description</Label>
           <ExpandTextarea
             value={fields["Long Description"] || ""}
             onChange={(e) => handleFieldChange("Long Description", e.target.value)}
             placeholder="Fuller context for the message page. Written from the transcript; no length cap."
-            collapsedHeight="h-[80px]" className="text-xs bg-background"
+            collapsedHeight="h-[80px]" className={`text-xs bg-background${fieldRing("wanted", fields["Long Description"])}`}
           />
         </div>
         <div className="space-y-1">
@@ -802,8 +802,8 @@ export default function SermonDetail() {
           <ExpandTextarea
             value={fields["Manual Long Description"] || ""}
             onChange={(e) => handleFieldChange("Manual Long Description", e.target.value)}
-            placeholder="Optional. If filled, this wins over the generated version at publish."
-            collapsedHeight="h-[80px]" className="text-xs bg-background"
+            placeholder="Optional. If filled, this wins over the AI version at publish."
+            collapsedHeight="h-[80px]" className={`text-xs bg-background${fieldRing("optional", fields["Manual Long Description"])}`}
           />
         </div>
         <div className="space-y-1">

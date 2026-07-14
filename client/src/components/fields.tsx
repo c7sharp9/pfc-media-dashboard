@@ -46,10 +46,21 @@ export function OpenLinkButton({
 }
 
 // Red outline for inputs that are required but still unpopulated.
+// Field status colors (Jonathan's system, 2026-07-13):
+//   light green = filled, grey = fine to stay empty, yellow = wanted but not
+//   required, red = required and missing.
+export function fieldRing(
+  level: "required" | "wanted" | "optional",
+  value: any
+) {
+  if (value) return " border-emerald-500/45 focus-visible:ring-emerald-500/20";
+  if (level === "required") return " border-red-500/60 focus-visible:ring-red-500/40";
+  if (level === "wanted") return " border-amber-500/55 focus-visible:ring-amber-500/25";
+  return "";
+}
+
 export function requiredClass(required: boolean | undefined, value: any) {
-  return required && !value
-    ? " border-red-500/60 focus-visible:ring-red-500/40"
-    : "";
+  return fieldRing(required ? "required" : "optional", value);
 }
 
 export function UrlField({

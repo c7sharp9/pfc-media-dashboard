@@ -33,7 +33,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatLongDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { OpenLinkButton, requiredClass } from "@/components/fields";
+import { OpenLinkButton, fieldRing } from "@/components/fields";
 import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
 import type { Edit, Sermon } from "@shared/schema";
 
@@ -47,14 +47,6 @@ function CharCount({ value }: { value?: string }) {
       {len}/{SHORT_DESC_MAX}
     </span>
   );
-}
-
-// Progress tint mirroring the sermon page's complete/incomplete language:
-// amber while pending, emerald once done.
-function doneRing(done: boolean): string {
-  return done
-    ? " border-emerald-500/60 focus-visible:ring-emerald-500/20"
-    : " border-amber-500/60 focus-visible:ring-amber-500/20";
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -75,7 +67,7 @@ function UrlRow({
   placeholder,
   disabled,
   hint,
-  required,
+  level = "optional",
 }: {
   label: string;
   value: string;
@@ -83,7 +75,7 @@ function UrlRow({
   placeholder?: string;
   disabled?: boolean;
   hint?: string;
-  required?: boolean;
+  level?: "required" | "wanted" | "optional";
 }) {
   return (
     <div className="space-y-1">
@@ -98,7 +90,7 @@ function UrlRow({
           disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className={`text-xs h-8 bg-background${required ? requiredClass(true, value) : ""}`}
+          className={`text-xs h-8 bg-background${fieldRing(level, value)}`}
         />
         {value && <OpenLinkButton url={value} label={`Open ${label}`} />}
       </div>
@@ -393,7 +385,7 @@ export default function EditDetailPage() {
             value={fields["Title"] || ""}
             onChange={(e) => set("Title", e.target.value)}
             placeholder="Edit title..."
-            className={`text-lg font-semibold h-10 bg-transparent border-transparent hover:border-border focus:border-border px-2 -ml-2${requiredClass(true, fields["Title"])}`}
+            className={`text-lg font-semibold h-10 bg-transparent border-transparent hover:border-border focus:border-border px-2 -ml-2${fieldRing("required", fields["Title"])}`}
             data-testid="input-edit-title"
           />
           <div className="flex items-center gap-2 mt-1 flex-wrap px-0.5">
@@ -424,13 +416,13 @@ export default function EditDetailPage() {
                 <Input
                   value={fields["Editor Name"] || ""}
                   onChange={(e) => set("Editor Name", e.target.value)}
-                  className="text-xs h-8 bg-background"
+                  className={`text-xs h-8 bg-background${fieldRing("wanted", fields["Editor Name"])}`}
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Status</Label>
                 <Select value={fields["Status"] || ""} onValueChange={(v) => set("Status", v)}>
-                  <SelectTrigger className={`text-xs h-8 bg-background${doneRing(fields["Status"] === "Completed")}`}>
+                  <SelectTrigger className={`text-xs h-8 bg-background${fieldRing("wanted", fields["Status"] === "Completed" ? fields["Status"] : "")}`}>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -447,7 +439,7 @@ export default function EditDetailPage() {
                   type="date"
                   value={fields["Broadcast Date"] || ""}
                   onChange={(e) => set("Broadcast Date", e.target.value)}
-                  className={`text-xs h-8 bg-background${requiredClass(true, fields["Broadcast Date"])}`}
+                  className={`text-xs h-8 bg-background${fieldRing("required", fields["Broadcast Date"])}`}
                 />
               </div>
               <div className="space-y-1">
@@ -456,7 +448,7 @@ export default function EditDetailPage() {
                   type="date"
                   value={fields["Date Completed"] || ""}
                   onChange={(e) => set("Date Completed", e.target.value || null)}
-                  className={`text-xs h-8 bg-background${doneRing(!!fields["Date Completed"])}`}
+                  className={`text-xs h-8 bg-background${fieldRing("wanted", fields["Date Completed"])}`}
                 />
               </div>
             </div>
@@ -484,14 +476,14 @@ export default function EditDetailPage() {
                 onChange={(e) => set("Edit Description", e.target.value)}
                 placeholder="What is this edit? One or two sentences (internal)."
                 collapsedHeight="h-[44px]"
-                className="text-xs bg-background"
+                className={`text-xs bg-background${fieldRing("optional", fields["Edit Description"])}`}
               />
             </div>
           </SectionCard>
 
           <SectionCard title="Links">
-            <UrlRow label="Video URL" hint="(include version number in file name)" value={fields["Video URL"] || ""} onChange={(v) => set("Video URL", v)} required />
-            <UrlRow label="XML (Zipped)" value={fields["XML"] || ""} onChange={(v) => set("XML", v)} required />
+            <UrlRow label="Video URL" hint="(include version number in file name)" value={fields["Video URL"] || ""} onChange={(v) => set("Video URL", v)} level="required" />
+            <UrlRow label="XML (Zipped)" value={fields["XML"] || ""} onChange={(v) => set("XML", v)} level="required" />
             <UrlRow label="Vertical URL" value={fields["Vertical"] || ""} onChange={(v) => set("Vertical", v)} />
             <UrlRow
               label="Full Service Transcription"
@@ -520,15 +512,15 @@ export default function EditDetailPage() {
             <div className="grid grid-cols-1 gap-2.5">
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">Short Website Description</Label>
+                  <Label className="text-xs text-muted-foreground">AI Short Website Description</Label>
                   <CharCount value={fields["Short Website Description"]} />
                 </div>
                 <ExpandTextarea
                   value={fields["Short Website Description"] || ""}
                   onChange={(e) => set("Short Website Description", e.target.value.slice(0, SHORT_DESC_MAX))}
-                  placeholder="One-line tagline. Max 125 characters."
+                  placeholder="Drafted by Prepare. Max 125 characters."
                   collapsedHeight="h-[52px]"
-                  className="text-xs bg-background"
+                  className={`text-xs bg-background${fieldRing("wanted", fields["Short Website Description"])}`}
                 />
               </div>
               <div className="space-y-1">
@@ -539,19 +531,19 @@ export default function EditDetailPage() {
                 <ExpandTextarea
                   value={fields["Manual Short Website Description"] || ""}
                   onChange={(e) => set("Manual Short Website Description", e.target.value.slice(0, SHORT_DESC_MAX))}
-                  placeholder="Optional. Wins over generated at publish."
+                  placeholder="Optional. Wins over AI at publish."
                   collapsedHeight="h-[52px]"
-                  className="text-xs bg-background"
+                  className={`text-xs bg-background${fieldRing("optional", fields["Manual Short Website Description"])}`}
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Long Description</Label>
+                <Label className="text-xs text-muted-foreground">AI Long Description</Label>
                 <ExpandTextarea
                   value={fields["Long Description"] || ""}
                   onChange={(e) => set("Long Description", e.target.value)}
-                  placeholder="Fuller context for the recap page."
+                  placeholder="Drafted by Prepare. Fuller context for the recap page."
                   collapsedHeight="h-[52px]"
-                  className="text-xs bg-background"
+                  className={`text-xs bg-background${fieldRing("wanted", fields["Long Description"])}`}
                 />
               </div>
               <div className="space-y-1">
@@ -559,9 +551,9 @@ export default function EditDetailPage() {
                 <ExpandTextarea
                   value={fields["Manual Long Description"] || ""}
                   onChange={(e) => set("Manual Long Description", e.target.value)}
-                  placeholder="Optional. Wins over generated at publish."
+                  placeholder="Optional. Wins over AI at publish."
                   collapsedHeight="h-[52px]"
-                  className="text-xs bg-background"
+                  className={`text-xs bg-background${fieldRing("optional", fields["Manual Long Description"])}`}
                 />
               </div>
             </div>
