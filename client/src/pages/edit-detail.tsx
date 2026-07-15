@@ -429,6 +429,7 @@ export default function EditDetailPage() {
                     <SelectItem value="In Progress">In Progress</SelectItem>
                     <SelectItem value="Ready for Review">Ready for Review</SelectItem>
                     <SelectItem value="Revision Needed">Revision Needed</SelectItem>
+                    <SelectItem value="Revision Ready for Review">Revision Ready for Review</SelectItem>
                     <SelectItem value="Completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
@@ -449,6 +450,18 @@ export default function EditDetailPage() {
                   value={fields["Date Completed"] || ""}
                   onChange={(e) => set("Date Completed", e.target.value || null)}
                   className={`text-xs h-8 bg-background${fieldRing("wanted", fields["Date Completed"])}`}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Version</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={fields["Version"] ?? ""}
+                  onChange={(e) => set("Version", e.target.value === "" ? null : Number(e.target.value))}
+                  placeholder="v#"
+                  className="text-xs h-8 bg-background"
                 />
               </div>
             </div>

@@ -53,6 +53,9 @@ function EditRow({ edit }: { edit: Edit }) {
               <TypeBadge key={t} type={t} className="text-[10px] leading-tight" />
             ))}
             <StatusBadge status={f["Status"]} className="text-[10px] leading-tight" />
+            {f["Version"] != null && (
+              <span className="text-[10px] font-medium text-muted-foreground tabular-nums">v{f["Version"]}</span>
+            )}
             {f["Editor Name"] && (
               <span className="text-[10px] text-muted-foreground">{f["Editor Name"]}</span>
             )}
@@ -144,6 +147,9 @@ export default function EditsPage() {
           </TabsTrigger>
           <TabsTrigger value="Revision Needed" className="text-xs" data-testid="edit-filter-revision">
             Revision
+          </TabsTrigger>
+          <TabsTrigger value="Revision Ready for Review" className="text-xs" data-testid="edit-filter-rev-review">
+            Rev. Review
           </TabsTrigger>
           <TabsTrigger value="Completed" className="text-xs" data-testid="edit-filter-completed">
             Completed

@@ -38,6 +38,8 @@ export function StatusBadge({
       ? "bg-blue-500/15 text-blue-400 border-blue-500/20"
       : status === "Ready for Review"
         ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/20"
+        : status === "Revision Ready for Review"
+        ? "bg-purple-500/15 text-purple-400 border-purple-500/25"
         : status === "Revision Needed"
           ? "bg-orange-500/15 text-orange-400 border-orange-500/20"
           : status === "Completed"

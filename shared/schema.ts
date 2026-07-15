@@ -44,6 +44,7 @@ export interface Edit {
   fields: {
     "Broadcast Date"?: string;
     "Status"?: string;
+    "Version"?: number;
     "Type"?: string[];
     "Date Completed"?: string;
     "Video URL"?: string;
@@ -114,6 +115,7 @@ export const createEditSchema = z.object({
   "Long Description": z.string().optional(),
   "Manual Long Description": z.string().optional(),
   "Status": z.string().optional(),
+  "Version": z.number().optional().nullable(),
   "Type": z.array(z.string()).optional(),
   "Editor Name": z.string().optional(),
   "Video URL": z.string().url().optional().or(z.literal("")),
