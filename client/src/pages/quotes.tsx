@@ -22,6 +22,8 @@ interface QuoteRecord {
     "Video Timecode"?: string;
     "Service Date"?: string;
     "On Website"?: boolean;
+    "Believe"?: boolean;
+    "Homepage Quote"?: boolean;
     Source?: string;
     Speaker?: string;
   };
@@ -95,11 +97,31 @@ function ToggleChip({
 
 type SortMode = "newest" | "oldest" | "random";
 
+// Small in-row tag toggle (Believe / Homepage). Purple when set.
+function TagToggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-colors shrink-0 ${
+        on
+          ? "bg-purple-500/15 text-purple-400 border-purple-500/40"
+          : "bg-transparent text-muted-foreground/50 border-border hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function QuotesBrowsePage() {
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [showSermon, setShowSermon] = useState(true);
   const [showOG, setShowOG] = useState(true);
+  const [filterBelieve, setFilterBelieve] = useState(false);
+  const [filterHomepage, setFilterHomepage] = useState(false);
   const [sort, setSort] = useState<SortMode>("newest");
   const [seed, setSeed] = useState(1);
 
@@ -163,6 +185,16 @@ export default function QuotesBrowsePage() {
       toast({ title: "Delete failed", description: error.message, variant: "destructive" }),
   });
 
+  const tagMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: string; value: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/quotes/${id}`, { [field]: value });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/quotes", "all"] }),
+    onError: (error: Error) =>
+      toast({ title: "Tag failed", description: error.message, variant: "destructive" }),
+  });
+
   const needle = q.trim().toLowerCase();
   const quotes = useMemo(() => {
     const filtered = (data?.records || []).filter((r) => {
@@ -172,6 +204,8 @@ export default function QuotesBrowsePage() {
       if (isOG && !showOG) return false;
       // Pipeline quotes only surface here once kept for the website.
       if (!isOG && (!showSermon || !r.fields["On Website"])) return false;
+      if (filterBelieve && !r.fields["Believe"]) return false;
+      if (filterHomepage && !r.fields["Homepage Quote"]) return false;
       if (needle) {
         const hay = `${text} ${r.fields["Speaker"] || ""} ${r.fields["Service Date"] || ""}`.toLowerCase();
         if (!hay.includes(needle)) return false;
@@ -185,7 +219,7 @@ export default function QuotesBrowsePage() {
       const cmp = (b.fields["Service Date"] || "").localeCompare(a.fields["Service Date"] || "");
       return sort === "newest" ? cmp : -cmp;
     });
-  }, [data, needle, showSermon, showOG, sort, seed]);
+  }, [data, needle, showSermon, showOG, filterBelieve, filterHomepage, sort, seed]);
 
   return (
     <div className="p-3 md:p-4 max-w-3xl mx-auto">
@@ -205,6 +239,13 @@ export default function QuotesBrowsePage() {
         </ToggleChip>
         <ToggleChip on={showOG} onClick={() => setShowOG((v) => !v)}>
           OG Quotes
+        </ToggleChip>
+        <span className="w-px h-5 bg-border mx-0.5" />
+        <ToggleChip on={filterBelieve} onClick={() => setFilterBelieve((v) => !v)}>
+          Believe
+        </ToggleChip>
+        <ToggleChip on={filterHomepage} onClick={() => setFilterHomepage((v) => !v)}>
+          Homepage
         </ToggleChip>
         <div className="flex items-center gap-1 ml-auto">
           <ToggleChip on={sort === "newest"} onClick={() => setSort("newest")}>
@@ -283,7 +324,17 @@ export default function QuotesBrowsePage() {
                     {isOG && <span className="uppercase tracking-wide text-[9px] text-muted-foreground/60">OG</span>}
                   </p>
                 </div>
-                <div className="flex items-center shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
+                  <TagToggle
+                    on={!!r.fields["Believe"]}
+                    onClick={() => tagMutation.mutate({ id: r.id, field: "Believe", value: !r.fields["Believe"] })}
+                    label="Believe"
+                  />
+                  <TagToggle
+                    on={!!r.fields["Homepage Quote"]}
+                    onClick={() => tagMutation.mutate({ id: r.id, field: "Homepage Quote", value: !r.fields["Homepage Quote"] })}
+                    label="Homepage"
+                  />
                   <CopyButton text={text} />
                   <Button
                     variant="ghost"
