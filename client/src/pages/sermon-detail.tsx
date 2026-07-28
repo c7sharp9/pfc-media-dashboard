@@ -101,9 +101,9 @@ function timecodeSeconds(tc: string): number {
   return parts.reduce((acc, n) => acc * 60 + n, 0);
 }
 
-// Website Quotes: the selection table for "Moments from this message".
+// Moments: the selection table for "Moments from this message" on the site.
 // Check the ones to publish, tweak the Final text (Original is never touched),
-// then Send Quotes to Website -- re-sending REPLACES the live set, so the same
+// then Send Moments to Website -- re-sending REPLACES the live set, so the same
 // button is also the update button.
 function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDate?: string }) {
   const { toast } = useToast();
@@ -144,11 +144,11 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
           result.status === "unchanged"
             ? "Already up to date"
             : result.status === "removed"
-              ? "Quotes removed from the page"
-              : `${result.count} quotes sent`,
+              ? "Moments removed from the page"
+              : `${result.count} moments sent`,
         description:
           result.status === "unchanged"
-            ? "The website already has exactly these quotes."
+            ? "The website already has exactly these moments."
             : "The site is rebuilding; live in about 30 seconds.",
       });
     },
@@ -163,7 +163,7 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
       <Separator className="my-3" />
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-          <Quote className="w-3.5 h-3.5" /> Website Quotes
+          <Quote className="w-3.5 h-3.5" /> Moments
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">
@@ -180,14 +180,14 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
             {sendQuotesMutation.isPending
               ? "Sending..."
               : quotes.some((q) => (q.fields as any)["Reviewed"])
-                ? "Re-send Quotes to Website"
-                : "Send Quotes to Website"}
+                ? "Re-send Moments to Website"
+                : "Send Moments to Website"}
           </Button>
         </div>
       </div>
       {quotes.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          No quotes for this service date yet. Claude extracts them from the transcript; they land here for review.
+          No moments for this service date yet. Claude extracts them from the transcript; they land here for review.
         </p>
       ) : (
         <div className="space-y-1.5">
@@ -205,7 +205,7 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
                     onChange={(e) =>
                       patchMutation.mutate({ id: q.id, fields: { "On Website": e.target.checked } })
                     }
-                    aria-label="Publish this quote"
+                    aria-label="Publish this moment"
                   />
                   <div className="flex-1 min-w-0 space-y-1">
                     <p className="text-xs text-foreground leading-snug">&ldquo;{original.replace(/<[^>]+>/g, "")}&rdquo;</p>
@@ -360,7 +360,7 @@ export default function SermonDetail() {
       toast({
         title: "Prepare started",
         description:
-          "Claude is drafting the descriptions and moment quotes from the transcript. Refresh in a few minutes to review.",
+          "Claude is drafting the descriptions and moments from the transcript. Refresh in a few minutes to review.",
       }),
     onError: (error: Error) =>
       toast({ title: "Prepare failed", description: error.message, variant: "destructive" }),
@@ -375,7 +375,7 @@ export default function SermonDetail() {
       toast({
         title: "Descript started",
         description:
-          "The audio is uploading to Descript. Once it transcribes, the transcript URL, descriptions and moment quotes fill in automatically. Refresh in ~10 minutes.",
+          "The audio is uploading to Descript. Once it transcribes, the transcript URL, descriptions and moments fill in automatically. Refresh in ~10 minutes.",
       }),
     onError: (error: Error) =>
       toast({ title: "Descript failed", description: error.message, variant: "destructive" }),
@@ -573,7 +573,7 @@ export default function SermonDetail() {
                     disabled={descriptMutation.isPending}
                     onClick={() => descriptMutation.mutate()}
                     data-testid="button-descript-sunday"
-                    title="Send the audio to Descript, then draft descriptions + moment quotes"
+                    title="Send the audio to Descript, then draft descriptions + moments"
                   >
                     <Wand2 className="w-3 h-3" />
                     {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
@@ -740,7 +740,7 @@ export default function SermonDetail() {
                     disabled={descriptMutation.isPending}
                     onClick={() => descriptMutation.mutate()}
                     data-testid="button-descript-wednesday"
-                    title="Send the audio to Descript, then draft descriptions + moment quotes"
+                    title="Send the audio to Descript, then draft descriptions + moments"
                   >
                     <Wand2 className="w-3 h-3" />
                     {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
@@ -850,7 +850,7 @@ export default function SermonDetail() {
           disabled={prepareMutation.isPending}
           onClick={() => prepareMutation.mutate()}
           data-testid="button-prepare-sermon"
-          title="Draft descriptions + moment quotes from the transcript with AI"
+          title="Draft descriptions + moments from the transcript with AI"
         >
           <Wand2 className="w-3 h-3" />
           {prepareMutation.isPending ? "Starting..." : "Prepare with AI"}
