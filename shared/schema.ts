@@ -23,6 +23,7 @@ export interface Sermon {
     "Trimmed Video URL"?: string;
     "Audio URL"?: string;
     "Transcription URL"?: string;
+    "Added to Drive"?: boolean;
     "AI Service Transcript"?: string;
     "YouTube Trimmed URL"?: string;
     "YouTube Title"?: string;
@@ -91,6 +92,7 @@ export const updateSermonSchema = z.object({
   "Trimmed Video URL": z.string().url().optional().or(z.literal("")),
   "Audio URL": z.string().url().optional().or(z.literal("")),
   "Transcription URL": z.string().url().optional().or(z.literal("")),
+  "Added to Drive": z.boolean().optional(),
   "YouTube Trimmed URL": z.string().url().optional().or(z.literal("")),
   "YouTube Title": z.string().optional(),
   "YouTube Hidden": z.boolean().optional(),

@@ -543,6 +543,12 @@ export default function SermonDetail() {
                 placeholder="google drive link"
                 level="wanted"
               />
+              <CheckboxField
+                label="Added to Google Drive?"
+                checked={!!fields["Added to Drive"]}
+                fieldName="Added to Drive"
+                onChange={handleFieldChange}
+              />
             </WorkflowStep>
 
             {/* SUNDAY Step 3: YouTube */}
@@ -684,6 +690,12 @@ export default function SermonDetail() {
                 fieldName="Transcription URL"
                 onChange={handleFieldChange}
                 level="wanted"
+              />
+              <CheckboxField
+                label="Added to Google Drive?"
+                checked={!!fields["Added to Drive"]}
+                fieldName="Added to Drive"
+                onChange={handleFieldChange}
               />
             </WorkflowStep>
 
