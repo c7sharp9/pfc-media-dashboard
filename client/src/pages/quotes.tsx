@@ -235,7 +235,7 @@ export default function QuotesBrowsePage() {
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <ToggleChip on={showSermon} onClick={() => setShowSermon((v) => !v)}>
-          Sermon Quotes
+          Moments
         </ToggleChip>
         <ToggleChip on={showOG} onClick={() => setShowOG((v) => !v)}>
           OG Quotes

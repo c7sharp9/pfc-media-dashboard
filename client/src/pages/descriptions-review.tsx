@@ -220,7 +220,7 @@ export default function DescriptionsReviewPage() {
         <div>
           <h1 className="text-base font-semibold text-foreground">Descriptions</h1>
           <p className="text-xs text-muted-foreground">
-            Review, revise, and send each sermon's short + long descriptions.
+            Revise, approve, and send each sermon's short + long descriptions.
           </p>
         </div>
         <span className="text-xs text-muted-foreground tabular-nums">{filtered.length}</span>
@@ -230,8 +230,8 @@ export default function DescriptionsReviewPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="bg-muted/50">
             <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-            <TabsTrigger value="unreviewed" className="text-xs">Needs review</TabsTrigger>
-            <TabsTrigger value="reviewed" className="text-xs">Reviewed</TabsTrigger>
+            <TabsTrigger value="unreviewed" className="text-xs">Needs approval</TabsTrigger>
+            <TabsTrigger value="reviewed" className="text-xs">Approved</TabsTrigger>
             <TabsTrigger value="missing" className="text-xs">Missing</TabsTrigger>
             <TabsTrigger value="skipped" className="text-xs">Skipped</TabsTrigger>
           </TabsList>
@@ -257,7 +257,7 @@ export default function DescriptionsReviewPage() {
       ) : filtered.length === 0 ? (
         <p className="p-8 text-center text-sm text-muted-foreground">
           {tab === "unreviewed"
-            ? "Nothing awaiting review. All caught up."
+            ? "Nothing awaiting approval. All caught up."
             : tab === "missing"
               ? "Every in-scope sermon has a short description."
               : tab === "skipped"
@@ -293,11 +293,11 @@ export default function DescriptionsReviewPage() {
                   )}
                   {reviewed ? (
                     <Badge className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-500 border-emerald-500/30" variant="outline">
-                      Reviewed
+                      Approved
                     </Badge>
                   ) : (
                     <Badge className="text-[9px] px-1.5 py-0 bg-amber-500/15 text-amber-500 border-amber-500/30" variant="outline">
-                      Needs review
+                      Needs approval
                     </Badge>
                   )}
                 </button>
@@ -335,7 +335,7 @@ export default function DescriptionsReviewPage() {
                             checked={reviewed}
                             onChange={(e) => patch(s.id, { "Descriptions Reviewed": e.target.checked })}
                           />
-                          Reviewed
+                          Approved
                         </label>
                         <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground" title="Out of scope for the new website (no descriptions, not sent)">
                           <input
