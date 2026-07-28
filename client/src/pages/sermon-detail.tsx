@@ -366,6 +366,21 @@ export default function SermonDetail() {
       toast({ title: "Prepare failed", description: error.message, variant: "destructive" }),
   });
 
+  const descriptMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/sermons/${params.id}/descript`);
+      return res.json();
+    },
+    onSuccess: () =>
+      toast({
+        title: "Descript started",
+        description:
+          "The audio is uploading to Descript. Once it transcribes, the transcript URL, descriptions and moment quotes fill in automatically. Refresh in ~10 minutes.",
+      }),
+    onError: (error: Error) =>
+      toast({ title: "Descript failed", description: error.message, variant: "destructive" }),
+  });
+
   const handleFieldChange = (fieldName: string, value: any) => {
     setFields((prev) => ({ ...prev, [fieldName]: value }));
     setHasChanges(true);
@@ -549,6 +564,25 @@ export default function SermonDetail() {
                 fieldName="Added to Drive"
                 onChange={handleFieldChange}
               />
+              {!!(fields["Audio URL"] || fields["Trimmed Audio"]) && (
+                <div className="pt-1 space-y-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-7 text-xs w-full"
+                    disabled={descriptMutation.isPending}
+                    onClick={() => descriptMutation.mutate()}
+                    data-testid="button-descript-sunday"
+                    title="Send the audio to Descript, then draft descriptions + moment quotes"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground/70">
+                    Transcribes the audio with Descript, then drafts descriptions and moment quotes. ~10 min.
+                  </p>
+                </div>
+              )}
             </WorkflowStep>
 
             {/* SUNDAY Step 3: YouTube */}
@@ -697,6 +731,25 @@ export default function SermonDetail() {
                 fieldName="Added to Drive"
                 onChange={handleFieldChange}
               />
+              {!!(fields["Audio URL"] || fields["Trimmed Audio"]) && (
+                <div className="pt-1 space-y-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-7 text-xs w-full"
+                    disabled={descriptMutation.isPending}
+                    onClick={() => descriptMutation.mutate()}
+                    data-testid="button-descript-wednesday"
+                    title="Send the audio to Descript, then draft descriptions + moment quotes"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground/70">
+                    Transcribes the audio with Descript, then drafts descriptions and moment quotes. ~10 min.
+                  </p>
+                </div>
+              )}
             </WorkflowStep>
 
             {/* WEDNESDAY Step 4: Trim Live Streams */}

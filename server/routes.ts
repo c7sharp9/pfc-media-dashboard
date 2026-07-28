@@ -643,6 +643,40 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/sermons/:id/descript", async (req, res) => {
+    try {
+      const token = process.env.GITHUB_TOKEN || "";
+      if (!token) return res.status(503).json({ error: "GITHUB_TOKEN is not configured on the server." });
+      // Descript transcribes the audio, so audio is the one hard requirement.
+      if (!useSampleData) {
+        const rec = await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`);
+        const hasAudio = (rec?.fields?.["Audio URL"] || rec?.fields?.["Trimmed Audio"] || "").trim();
+        if (!hasAudio) {
+          return res.status(422).json({
+            error: "No audio yet. Add the Audio URL (Drive link) and re-run -- Descript transcribes the audio file.",
+          });
+        }
+      }
+      const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ event_type: "descript-sermon", client_payload: { sermonId: req.params.id } }),
+      });
+      if (gh.status !== 204) {
+        return res.status(502).json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` });
+      }
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("Error starting Descript transcription:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/edits/:id/prepare", async (req, res) => {
     try {
       await dispatchRecap("prepare-recap", req.params.id);
