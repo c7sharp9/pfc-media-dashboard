@@ -835,6 +835,17 @@ export default function SermonDetail() {
             collapsedHeight="h-[80px]" className={`text-xs bg-background${fieldRing("optional", fields["Manual Long Description"])}`}
           />
         </div>
+        <div className="pt-0.5">
+          <CheckboxField
+            label="Descriptions Approved"
+            checked={!!fields["Descriptions Reviewed"]}
+            fieldName="Descriptions Reviewed"
+            onChange={handleFieldChange}
+          />
+          <p className="text-[10px] text-muted-foreground/70 pl-6">
+            Check once you've reviewed and approved the descriptions above.
+          </p>
+        </div>
         {fields["AI Service Transcript"] && (
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">
