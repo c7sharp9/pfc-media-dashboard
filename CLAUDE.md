@@ -139,6 +139,22 @@ Note: claude-sonnet-5 emits a thinking block that counts against max_tokens,
 so the quotes call budgets 8000 tokens. After Prepare: review descriptions in
 the sermon workspace, review quotes on the Website Quotes page, then Send each.
 
+## Generate Transcript + Descriptions (Descript API)
+
+On a sermon that has an **Audio URL**, the Descript transcript step shows a
+**Generate Transcript + Descriptions** button (`POST /api/sermons/:id/descript`,
+BOTH API layers -> `descript-sermon` dispatch on pfc-website). It sends the
+Drive audio to Descript, transcribes it (speaker labels), hosts the transcript
+on the site, writes `Transcription URL`, then runs the normal descriptions +
+moment-quote pass off that transcript. ~4-10 min; gate is audio (422 without it).
+Re-run with `force` to re-transcribe -- that also regenerates the quotes, and
+`--force-quotes` REPLACES the previous Claude set rather than stacking a second
+one on top of it.
+**Drive write-back is manual**: a consumer Gmail Drive can't be written by a
+service account, so the team copies the transcript into Drive and ticks the
+**"Added to Google Drive?"** checkbox (`Added to Drive`) next to the transcript
+URL. Full pipeline notes live in the pfc-website CLAUDE.md.
+
 ## Descriptions review (/descriptions)
 
 The **Descriptions** page is the sibling of Website Quotes for sermon copy: one
