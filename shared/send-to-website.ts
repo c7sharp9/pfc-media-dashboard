@@ -50,38 +50,64 @@ export interface SendResult {
   pageUrl: string;
 }
 
-// Front-matter keys this integration owns. Anything else already in the file
-// (legacyAudio, rebroadcast, visible, speaker, ...) is preserved verbatim so
-// a send never destroys archive data it doesn't know about.
-const MANAGED_KEYS = ["title", "date", "youtube", "fullService", "broadcast", "description", "longDescription"];
+// The three publishable pieces of a message page are sent INDEPENDENTLY, by
+// different people at different times: the person who cuts the video sends the
+// sermon as soon as it's ready, without waiting on description or moment
+// approval. Each send rewrites only the keys it owns and leaves the rest of the
+// file exactly as it found it.
+//   "sermon"       -> the video + its identity
+//   "descriptions" -> the copy (approved separately)
+//   "all"          -> both (the original combined behaviour)
+// Moments live in `pullQuotes` and are owned by send-quotes-to-website.ts.
+export type SendMode = "all" | "sermon" | "descriptions";
 
-// Pull the raw front-matter lines for keys we don't manage. Block-aware:
+const SERMON_KEYS = ["title", "date", "youtube", "fullService", "broadcast"];
+const DESCRIPTION_KEYS = ["description", "longDescription"];
+const ALL_KEYS = [...SERMON_KEYS, ...DESCRIPTION_KEYS];
+
+function keysFor(mode: SendMode): string[] {
+  if (mode === "sermon") return SERMON_KEYS;
+  if (mode === "descriptions") return DESCRIPTION_KEYS;
+  return ALL_KEYS;
+}
+
+// Split existing front matter into ordered per-key blocks. Block-aware:
 // indented continuation lines (e.g. the "- time:/text:" items of a pullQuotes
-// list) belong to the key above them and are kept or dropped with it -- the
-// old line-by-line filter silently dropped them, corrupting multi-line YAML.
-export function unmanagedFrontMatterLines(existingMarkdown: string): string[] {
+// list) belong to the key above them, so they travel with it -- a line-by-line
+// filter silently drops them and corrupts multi-line YAML.
+export function parseFrontMatterBlocks(
+  existingMarkdown: string
+): { key: string; lines: string[] }[] {
   const m = existingMarkdown.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return [];
-  const out: string[] = [];
-  let keepBlock = false;
+  const blocks: { key: string; lines: string[] }[] = [];
+  let current: { key: string; lines: string[] } | null = null;
   for (const line of m[1].split("\n")) {
     const key = line.match(/^([A-Za-z][A-Za-z0-9_-]*):/)?.[1];
-    if (key) keepBlock = !MANAGED_KEYS.includes(key);
-    if (keepBlock) out.push(line);
+    if (key) {
+      current = { key, lines: [line] };
+      blocks.push(current);
+    } else if (current) {
+      current.lines.push(line);
+    }
   }
-  return out;
+  return blocks;
 }
 
 // Validate the record and build the markdown. Throws with a friendly message
-// listing anything missing.
+// listing anything missing. Only the keys owned by `mode` are rebuilt from
+// Airtable; every other key keeps the exact line(s) already in the file, in the
+// original order, so an independent send never disturbs the other pieces.
 export function buildSermonMarkdown(
   fields: Record<string, any>,
-  extraLines: string[] = []
+  existingMarkdown: string = "",
+  mode: SendMode = "all"
 ): {
   slug: string;
   markdown: string;
 } {
   const isSunday = fields["Platform"] === "Sunday";
+  const owned = keysFor(mode);
   const missing: string[] = [];
 
   const date = fields["Service"] || "";
@@ -94,9 +120,11 @@ export function buildSermonMarkdown(
     ? extractYouTubeId(fields["YouTube Full Service URL"] || "")
     : "";
 
+  // The date is always needed -- it's the slug. Title/video are only required
+  // when this send is the one that owns them.
   if (!date) missing.push("Service date");
-  if (!title) missing.push("Title");
-  if (!youtube)
+  if (owned.includes("title") && !title) missing.push("Title");
+  if (owned.includes("youtube") && !youtube)
     missing.push(isSunday ? "YouTube Trimmed URL" : "Wednesday YouTube Link");
 
   if (missing.length) {
@@ -110,20 +138,37 @@ export function buildSermonMarkdown(
     ? "Prophetic Fulfillment Church"
     : "Pulling on Heaven Podcast";
 
-  const lines = [
-    "---",
-    `title: "${title.replace(/"/g, "'")}"`,
-    `date: ${date.slice(0, 10)}`,
-    `youtube: "${youtube}"`,
-  ];
-  if (fullService) lines.push(`fullService: "${fullService}"`);
-  lines.push(`broadcast: "${broadcast}"`);
   // Manual fields win over generated ones when filled.
   const desc = ((fields["Manual Short Description"] || fields["Short Description"]) || "").trim().replace(/\s+/g, " ");
-  if (desc) lines.push(`description: "${desc.replace(/"/g, "'")}"`);
   const longDesc = ((fields["Manual Long Description"] || fields["Long Description"]) || "").trim().replace(/\s+/g, " ");
-  if (longDesc) lines.push(`longDescription: "${longDesc.replace(/"/g, "'")}"`);
-  lines.push(...extraLines);
+
+  const computed: Record<string, string | ""> = {
+    title: `title: "${title.replace(/"/g, "'")}"`,
+    date: `date: ${date.slice(0, 10)}`,
+    youtube: `youtube: "${youtube}"`,
+    fullService: fullService ? `fullService: "${fullService}"` : "",
+    broadcast: `broadcast: "${broadcast}"`,
+    description: desc ? `description: "${desc.replace(/"/g, "'")}"` : "",
+    longDescription: longDesc ? `longDescription: "${longDesc.replace(/"/g, "'")}"` : "",
+  };
+
+  const existing = parseFrontMatterBlocks(existingMarkdown);
+  const existingByKey = new Map(existing.map((b) => [b.key, b.lines]));
+
+  const lines: string[] = ["---"];
+  for (const key of ALL_KEYS) {
+    if (owned.includes(key)) {
+      if (computed[key]) lines.push(computed[key]);
+    } else {
+      const kept = existingByKey.get(key);
+      if (kept) lines.push(...kept);
+    }
+  }
+  // Keys this integration doesn't manage at all (pullQuotes, legacyAudio,
+  // rebroadcast, visible, speaker, ...) are preserved verbatim, in order.
+  for (const block of existing) {
+    if (!ALL_KEYS.includes(block.key)) lines.push(...block.lines);
+  }
   lines.push("---", "");
 
   return { slug, markdown: lines.join("\n") };
@@ -149,7 +194,8 @@ async function githubFetch(
 // Commit the sermon file. Idempotent: if the file already exists with the
 // same content, nothing is committed and status is "unchanged".
 export async function sendToWebsite(
-  fields: Record<string, any>
+  fields: Record<string, any>,
+  mode: SendMode = "all"
 ): Promise<SendResult> {
   const token = process.env.GITHUB_TOKEN || "";
   if (!token) {
@@ -161,12 +207,12 @@ export async function sendToWebsite(
     process.env.PFC_SITE_URL || "https://pfc-preview-gz.netlify.app"
   ).replace(/\/$/, "");
 
-  const { slug } = buildSermonMarkdown(fields); // validates + slug
+  const { slug } = buildSermonMarkdown(fields, "", mode); // validates + slug
   const filePath = `src/sermons/${slug}.md`;
   const pageUrl = `${siteUrl}/sermons/${slug}/`;
 
   // Does the file already exist? (need its sha to update; also lets us no-op
-  // and preserve front-matter keys we don't manage, like legacyAudio)
+  // and keep every key this send doesn't own exactly as it is)
   const getRes = await githubFetch(
     token,
     `/repos/${REPO}/contents/${filePath}?ref=${BRANCH}`
@@ -174,7 +220,6 @@ export async function sendToWebsite(
 
   let sha: string | undefined;
   let currentContent = "";
-  let extraLines: string[] = [];
   if (getRes.ok) {
     const existing = await getRes.json();
     sha = existing.sha;
@@ -182,22 +227,31 @@ export async function sendToWebsite(
       (existing.content || "").replace(/\n/g, ""),
       "base64"
     ).toString("utf-8");
-    extraLines = unmanagedFrontMatterLines(currentContent);
   } else if (getRes.status !== 404) {
     const text = await getRes.text();
     throw new Error(`GitHub error ${getRes.status}: ${text}`);
   }
 
-  const { markdown } = buildSermonMarkdown(fields, extraLines);
+  // Descriptions ride on top of a page that already exists -- on their own they
+  // can't produce a valid page (no title, no video), so the sermon goes first.
+  if (!sha && mode === "descriptions") {
+    throw new Error(
+      "This message isn't on the website yet. Use Send Sermon first, then send its descriptions."
+    );
+  }
+
+  const { markdown } = buildSermonMarkdown(fields, currentContent, mode);
   if (sha && currentContent === markdown) {
     return { status: "unchanged", slug, pageUrl };
   }
   const encoded = Buffer.from(markdown, "utf-8").toString("base64");
 
+  const what =
+    mode === "descriptions" ? "descriptions" : mode === "sermon" ? "sermon" : "sermon";
   const putRes = await githubFetch(token, `/repos/${REPO}/contents/${filePath}`, {
     method: "PUT",
     body: JSON.stringify({
-      message: `${sha ? "Update" : "Add"} sermon: ${fields["Title"]} (${fields["Service"]}) via dashboard`,
+      message: `${sha ? "Update" : "Add"} ${what}: ${fields["Title"]} (${fields["Service"]}) via dashboard`,
       content: encoded,
       branch: BRANCH,
       ...(sha ? { sha } : {}),

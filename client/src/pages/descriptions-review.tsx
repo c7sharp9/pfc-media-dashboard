@@ -142,7 +142,11 @@ export default function DescriptionsReviewPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", `/api/sermons/${id}/send-to-website`);
+      // Descriptions only: this page approves copy, and the sermon's video /
+      // identity is published separately by whoever cuts it.
+      const res = await apiRequest("POST", `/api/sermons/${id}/send-to-website`, {
+        mode: "descriptions",
+      });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Send failed");
       return { id, ...body };

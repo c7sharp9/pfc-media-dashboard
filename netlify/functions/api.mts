@@ -1,5 +1,5 @@
 import type { Context } from "@netlify/functions";
-import { sendToWebsite } from "../../shared/send-to-website";
+import { sendToWebsite, type SendMode } from "../../shared/send-to-website";
 import { sendQuotesToWebsite } from "../../shared/send-quotes-to-website";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
@@ -204,12 +204,20 @@ export default async (req: Request, context: Context) => {
       return json(result);
     }
 
-    // POST /sermons/:id/send-to-website — commit the sermon to the site repo
+    // POST /sermons/:id/send-to-website — commit the sermon to the site repo.
+    // Body {mode}: "sermon" (video + identity), "descriptions" (the copy), or
+    // "all". The pieces publish independently so the video doesn't wait on
+    // description approval.
     const sendMatch = path.match(/^\/sermons\/([^/]+)\/send-to-website$/);
     if (sendMatch && req.method === "POST") {
       const recUrl = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sendMatch[1]}`;
       const record = await airtableFetch(recUrl);
-      const result = await sendToWebsite(record.fields || {});
+      let mode: SendMode = "all";
+      try {
+        const body = await req.json();
+        if (body?.mode === "sermon" || body?.mode === "descriptions") mode = body.mode;
+      } catch { /* no body -> "all" */ }
+      const result = await sendToWebsite(record.fields || {}, mode);
       if (result.status !== "unchanged" || record.fields?.["Sermon URL"] !== result.pageUrl) {
         await airtableFetch(recUrl, {
           method: "PATCH",

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { sendToWebsite } from "../shared/send-to-website";
+import { sendToWebsite, type SendMode } from "../shared/send-to-website";
 import { sendQuotesToWebsite } from "../shared/send-quotes-to-website";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
@@ -505,7 +505,13 @@ export async function registerRoutes(
       }
       const url = `https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`;
       const record = await airtableFetch(url);
-      const result = await sendToWebsite(record.fields || {});
+      // Body {mode}: "sermon" (video + identity), "descriptions" (the copy), or
+      // "all". The pieces publish independently so the video doesn't wait on
+      // description approval.
+      const bodyMode = (req.body || {}).mode;
+      const mode: SendMode =
+        bodyMode === "sermon" || bodyMode === "descriptions" ? bodyMode : "all";
+      const result = await sendToWebsite(record.fields || {}, mode);
       if (result.status !== "unchanged" || record.fields?.["Sermon URL"] !== result.pageUrl) {
         await airtableFetch(url, {
           method: "PATCH",

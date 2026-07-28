@@ -325,24 +325,28 @@ export default function SermonDetail() {
   });
 
   // Send to Website: commits the sermon file to the site repo (auto-deploys).
+  // The sermon and its descriptions publish INDEPENDENTLY -- whoever cuts the
+  // video sends it as soon as it's ready, without waiting on copy approval --
+  // so each send rewrites only its own keys and leaves the rest of the page be.
   const sendMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/sermons/${params.id}/send-to-website`);
-      return res.json();
+    mutationFn: async (mode: "sermon" | "descriptions" = "sermon") => {
+      const res = await apiRequest("POST", `/api/sermons/${params.id}/send-to-website`, { mode });
+      return { ...(await res.json()), mode };
     },
-    onSuccess: (result: { status: string; pageUrl: string }) => {
+    onSuccess: (result: { status: string; pageUrl: string; mode: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sermons", params.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/sermons"] });
+      const what = result.mode === "descriptions" ? "descriptions" : "sermon";
       toast({
         title:
           result.status === "unchanged"
             ? "Already up to date"
             : result.status === "updated"
-              ? "Updated on website"
+              ? `Updated ${what} on website`
               : "Sent to website",
         description:
           result.status === "unchanged"
-            ? "The website already has this exact sermon."
+            ? `The website already has these exact ${what === "descriptions" ? "descriptions" : "sermon details"}.`
             : "The site is rebuilding; the page is live in about 30 seconds.",
       });
     },
@@ -428,13 +432,21 @@ export default function SermonDetail() {
   const platform = fields["Platform"] || "";
   const isSunday = platform === "Sunday";
 
-  // What Send to Website still needs before it can run.
+  // What Send Sermon still needs before it can run.
   const sendMissing: string[] = [];
   if (!title.trim()) sendMissing.push("Title");
   if (!fields["Service"]) sendMissing.push("Service date");
   if (isSunday && !fields["YouTube Trimmed URL"]) sendMissing.push("YouTube trimmed video");
   if (!isSunday && !fields["Wednesday YouTube Link"]) sendMissing.push("YouTube link");
   const canSend = sendMissing.length === 0 && !hasChanges && !sendMutation.isPending;
+
+  // Descriptions publish on their own, onto a page the sermon already created.
+  const hasDescription = !!(
+    (fields["Manual Short Description"] || fields["Short Description"] || "").trim() ||
+    (fields["Manual Long Description"] || fields["Long Description"] || "").trim()
+  );
+  const sermonIsLive = !!fields["Sermon URL"];
+  const canSendDescriptions = hasDescription && !hasChanges && !sendMutation.isPending;
 
   return (
     <div className="p-3 md:p-4 max-w-5xl mx-auto">
@@ -646,7 +658,7 @@ export default function SermonDetail() {
                   size="sm"
                   className="gap-1.5 h-7 text-xs"
                   disabled={!canSend}
-                  onClick={() => sendMutation.mutate()}
+                  onClick={() => sendMutation.mutate("sermon")}
                   data-testid="button-send-to-website"
                 >
                   <Globe className="w-3 h-3" />
@@ -654,7 +666,7 @@ export default function SermonDetail() {
                     ? "Sending..."
                     : fields["Sermon URL"]
                       ? "Re-send to Website"
-                      : "Send to Website"}
+                      : "Send Sermon to Website"}
                 </Button>
                 {hasChanges && (
                   <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
@@ -801,7 +813,7 @@ export default function SermonDetail() {
                   size="sm"
                   className="gap-1.5 h-7 text-xs"
                   disabled={!canSend}
-                  onClick={() => sendMutation.mutate()}
+                  onClick={() => sendMutation.mutate("sermon")}
                   data-testid="button-send-to-website"
                 >
                   <Globe className="w-3 h-3" />
@@ -809,7 +821,7 @@ export default function SermonDetail() {
                     ? "Sending..."
                     : fields["Sermon URL"]
                       ? "Re-send to Website"
-                      : "Send to Website"}
+                      : "Send Sermon to Website"}
                 </Button>
                 {hasChanges && (
                   <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
@@ -910,6 +922,33 @@ export default function SermonDetail() {
           <p className="text-[10px] text-muted-foreground/70 pl-6">
             Check once you've reviewed and approved the descriptions above.
           </p>
+        </div>
+        {/* Descriptions publish on their own, so approving copy never holds up
+            the video (and re-sending the sermon never overwrites this copy). */}
+        <div className="space-y-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-7 text-xs w-full"
+            disabled={!canSendDescriptions}
+            onClick={() => sendMutation.mutate("descriptions")}
+            data-testid="button-send-descriptions"
+            title="Publish just the descriptions to the message page"
+          >
+            <Globe className="w-3 h-3" />
+            {sendMutation.isPending ? "Sending..." : "Send Descriptions to Website"}
+          </Button>
+          {hasChanges ? (
+            <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+          ) : !hasDescription ? (
+            <p className="text-[10px] text-muted-foreground/70">
+              Nothing to send yet. Add a description above, or use Prepare with AI.
+            </p>
+          ) : !sermonIsLive ? (
+            <p className="text-[10px] text-amber-400/80">
+              Send the sermon to the website first; descriptions attach to that page.
+            </p>
+          ) : null}
         </div>
         {fields["AI Service Transcript"] && (
           <div className="space-y-1">
