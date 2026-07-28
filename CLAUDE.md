@@ -64,11 +64,29 @@ All data lives in Airtable. Three tables:
 
 ## Send to Website
 
-The sermon page's Website step has a **Send to Website** button: it commits
-`src/sermons/<slug>.md` to `c7sharp9/pfc-website` via the GitHub contents API
-(the site auto-deploys from main), then writes the page URL back to the
-record's `Sermon URL`. Logic lives ONCE in `shared/send-to-website.ts` and is
-imported by BOTH API layers (`POST /api/sermons/:id/send-to-website`).
+A message page publishes in **three independent pieces**, because different
+people own them: the editor who cuts the video sends the sermon as soon as it's
+ready, and does NOT wait on description or moment approval.
+
+| Piece | Button | Owns |
+|---|---|---|
+| Sermon | **Send Sermon to Website** (Website step) | `title, date, youtube, fullService, broadcast` |
+| Descriptions | **Send Descriptions to Website** (Additional Info; also the /descriptions page Send) | `description, longDescription` |
+| Moments | **Send Moments to Website** (Moments section) | `pullQuotes` |
+
+`POST /api/sermons/:id/send-to-website` takes a body `{mode}` of
+`"sermon" | "descriptions" | "all"` (default `"all"`); moments have their own
+endpoint. **Each send rewrites only the keys it owns and re-emits every other
+key's existing lines verbatim, in canonical order** (front matter is parsed
+into ordered per-key blocks). So re-sending the sermon can't push an unapproved
+Airtable description live, and can't disturb the moments. Descriptions-only on a
+page that doesn't exist yet errors ("Use Send Sermon first") since descriptions
+alone can't render a valid page.
+
+It commits `src/sermons/<slug>.md` to `c7sharp9/pfc-website` via the GitHub
+contents API (the site auto-deploys from main), then writes the page URL back to
+the record's `Sermon URL`. Logic lives ONCE in `shared/send-to-website.ts` and is
+imported by BOTH API layers.
 
 - Sunday -> broadcast "Prophetic Fulfillment Church" (`YouTube Trimmed URL` +
   `YouTube Full Service URL`); Wednesday -> "Pulling on Heaven Podcast"
