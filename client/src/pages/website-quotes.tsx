@@ -50,7 +50,7 @@ function CopyButton({ text }: { text: string }) {
       variant="ghost"
       size="sm"
       className="h-6 px-1.5 text-muted-foreground hover:text-foreground shrink-0"
-      aria-label="Copy quote"
+      aria-label="Copy moment"
       onClick={() => {
         navigator.clipboard.writeText(`“${text}”`);
         setCopied(true);
@@ -75,7 +75,7 @@ function QuoteRow({ q, onPatch }: { q: QuoteRecord; onPatch: (id: string, fields
         className="mt-1 h-3.5 w-3.5 accent-primary cursor-pointer shrink-0"
         checked={!!q.fields["On Website"]}
         onChange={(e) => onPatch(q.id, { "On Website": e.target.checked })}
-        aria-label="Publish this quote"
+        aria-label="Publish this moment"
       />
       <div className="flex-1 min-w-0 space-y-1">
         <p className="text-xs text-foreground leading-snug">&ldquo;{original}&rdquo;</p>
@@ -177,11 +177,11 @@ export default function WebsiteQuotesPage() {
           result.status === "unchanged"
             ? "Already up to date"
             : result.status === "removed"
-              ? "Quotes removed from the page"
-              : `${result.count} quotes sent`,
+              ? "Moments removed from the page"
+              : `${result.count} moments sent`,
         description:
           result.status === "unchanged"
-            ? "The website already has exactly these quotes."
+            ? "The website already has exactly these moments."
             : "The site is rebuilding; live in about 30 seconds.",
       });
     },
@@ -238,9 +238,9 @@ export default function WebsiteQuotesPage() {
     <div className="p-3 md:p-4 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-base font-semibold text-foreground">Website Quotes</h1>
+          <h1 className="text-base font-semibold text-foreground">Moments</h1>
           <p className="text-xs text-muted-foreground">
-            The website pipeline: review, revise, and send each service's quotes to its message page.
+            The website pipeline: review, revise, and send each service's moments to its message page.
           </p>
         </div>
         <span className="text-xs text-muted-foreground tabular-nums">{filtered.length}</span>
@@ -268,7 +268,7 @@ export default function WebsiteQuotesPage() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search quotes..."
+            placeholder="Search moments..."
             className="h-8 pl-8 text-xs bg-card"
             data-testid="input-quote-search"
           />
@@ -283,7 +283,7 @@ export default function WebsiteQuotesPage() {
         </div>
       ) : groups.length === 0 ? (
         <p className="p-8 text-center text-sm text-muted-foreground">
-          {tab === "unreviewed" ? "Nothing awaiting review. All caught up." : "No quotes match."}
+          {tab === "unreviewed" ? "Nothing awaiting review. All caught up." : "No moments match."}
         </p>
       ) : (
         <div className="space-y-2">

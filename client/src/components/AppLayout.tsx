@@ -4,7 +4,7 @@ import { Church, FileVideo, ListChecks, BookOpen, Quote, FileText } from "lucide
 const navItems = [
   { href: "/", label: "Sermons", icon: Church },
   { href: "/edits", label: "Edits", icon: FileVideo },
-  { href: "/website-quotes", label: "Website Quotes", icon: ListChecks },
+  { href: "/website-quotes", label: "Moments", icon: ListChecks },
   { href: "/descriptions", label: "Descriptions", icon: FileText },
   { href: "/quotes", label: "Quotes", icon: Quote },
   { href: "/workflow", label: "Workflow", icon: BookOpen },
