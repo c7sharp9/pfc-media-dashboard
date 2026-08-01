@@ -5,8 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Copy, Check, Clock, Shuffle, Trash2, Pencil, Home, Loader2 } from "lucide-react";
+import { Search, Copy, Check, Clock, Shuffle, Trash2, Pencil, Home, Loader2, Plus, Download } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatLongDate } from "@/lib/utils";
@@ -47,6 +56,15 @@ function sameTexts(a: string[], b: string[]): boolean {
   const sa = [...a].sort();
   const sb = [...b].sort();
   return sa.every((t, i) => t === sb[i]);
+}
+
+// Forgiving key for matching live-site text against Airtable records: the
+// site file and hand-logged quotes disagree on curly vs straight quotes.
+function matchKey(s: string): string {
+  return clean(s)
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .toLowerCase();
 }
 
 function displayText(q: QuoteRecord): string {
@@ -107,6 +125,110 @@ function ToggleChip({
 }
 
 type SortMode = "newest" | "oldest" | "random";
+
+// Add a quote by hand. Lands in the OG corpus (browsing wall / homepage /
+// social) -- message-page moments still come from the Moments workspace.
+function AddQuoteDialog({
+  onCreate,
+  isPending,
+}: {
+  onCreate: (fields: Record<string, any>) => Promise<unknown>;
+  isPending: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [date, setDate] = useState("");
+  const [homepage, setHomepage] = useState(false);
+  const [believe, setBelieve] = useState(false);
+
+  const reset = () => {
+    setText("");
+    setDate("");
+    setHomepage(false);
+    setBelieve(false);
+  };
+
+  const handleAdd = async () => {
+    const cleaned = clean(text);
+    if (!cleaned) return;
+    const fields: Record<string, any> = {
+      "Quote Original": cleaned,
+      Source: "OG",
+    };
+    if (date) fields["Service Date"] = date;
+    if (homepage) fields["Homepage Quote"] = true;
+    if (believe) fields["Believe"] = true;
+    await onCreate(fields);
+    reset();
+    setOpen(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) reset();
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" data-testid="button-add-quote">
+          <Plus className="w-3 h-3" />
+          Add Quote
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Add Quote</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-1">
+          <div className="space-y-1">
+            <Label className="text-xs">Quote</Label>
+            <Textarea
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="The quote, word for word..."
+              className="text-sm min-h-[80px]"
+              data-testid="input-add-quote-text"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Service Date (optional)</Label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="text-xs h-8"
+            />
+          </div>
+          <div className="flex items-center gap-5">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <Checkbox checked={homepage} onCheckedChange={(v) => setHomepage(!!v)} />
+              <span className="text-xs">Homepage</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <Checkbox checked={believe} onCheckedChange={(v) => setBelieve(!!v)} />
+              <span className="text-xs">Believe</span>
+            </label>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Adds to the quotes wall. Message-page moments still come from the
+            Moments workspace.
+          </p>
+          <Button
+            onClick={handleAdd}
+            disabled={!clean(text) || isPending}
+            className="w-full h-8 text-xs"
+            data-testid="button-create-quote"
+          >
+            {isPending ? "Adding..." : "Add Quote"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // One quote row: click the text (or the pencil) to edit the wording in place.
 // Saving writes Quote Final -- the manual-wins field the Moments page edits --
@@ -417,6 +539,66 @@ export default function QuotesBrowsePage() {
   const liveTexts = liveHomepage?.texts;
   const outOfSync = liveTexts !== undefined && !sameTexts(taggedTexts, liveTexts.map(clean));
 
+  const createMutation = useMutation({
+    mutationFn: async (fields: Record<string, any>) => {
+      const res = await apiRequest("POST", "/api/quotes", fields);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes", "all"] });
+      toast({ title: "Added", description: "Quote saved to Airtable." });
+    },
+    onError: (error: Error) =>
+      toast({ title: "Add failed", description: error.message, variant: "destructive" }),
+  });
+
+  // Live homepage quotes Airtable doesn't have tagged. Offer to pull them in
+  // (tag the record when the text already exists, create it otherwise) so the
+  // first Send Homepage can't silently drop what's live today.
+  const liveNotTagged = useMemo(() => {
+    if (!liveTexts) return [];
+    const byKey = new Map<string, QuoteRecord>();
+    for (const r of data?.records || []) {
+      const k = matchKey(displayText(r));
+      if (k && !byKey.has(k)) byKey.set(k, r);
+    }
+    return liveTexts
+      .map((t) => clean(t))
+      .filter(Boolean)
+      .map((text) => ({ text, existing: byKey.get(matchKey(text)) }))
+      .filter(({ existing }) => !existing || !existing.fields["Homepage Quote"]);
+  }, [liveTexts, data]);
+
+  const importMutation = useMutation({
+    mutationFn: async () => {
+      let created = 0;
+      let tagged = 0;
+      for (const { text, existing } of liveNotTagged) {
+        if (existing) {
+          await apiRequest("PATCH", `/api/quotes/${existing.id}`, { "Homepage Quote": true });
+          tagged++;
+        } else {
+          await apiRequest("POST", "/api/quotes", {
+            "Quote Original": text,
+            Source: "OG",
+            "Homepage Quote": true,
+          });
+          created++;
+        }
+      }
+      return { created, tagged };
+    },
+    onSuccess: ({ created, tagged }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes", "all"] });
+      toast({
+        title: "Imported",
+        description: `${created} quote${created === 1 ? "" : "s"} added, ${tagged} existing tagged — all Homepage now.`,
+      });
+    },
+    onError: (error: Error) =>
+      toast({ title: "Import failed", description: error.message, variant: "destructive" }),
+  });
+
   const needle = q.trim().toLowerCase();
   const quotes = useMemo(() => {
     const filtered = (data?.records || []).filter((r) => {
@@ -454,6 +636,10 @@ export default function QuotesBrowsePage() {
         </div>
         <div className="flex items-center gap-2.5">
           <span className="text-xs text-muted-foreground tabular-nums">{quotes.length}</span>
+          <AddQuoteDialog
+            onCreate={(fields) => createMutation.mutateAsync(fields)}
+            isPending={createMutation.isPending}
+          />
           <Button
             size="sm"
             variant={outOfSync ? "default" : "outline"}
@@ -533,6 +719,30 @@ export default function QuotesBrowsePage() {
           />
         </div>
       </div>
+
+      {liveNotTagged.length > 0 && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2">
+          <p className="text-xs text-purple-200/90">
+            {liveNotTagged.length === 1
+              ? "1 quote on the live homepage isn't tagged Homepage here — import it so a send doesn't drop it."
+              : `${liveNotTagged.length} quotes on the live homepage aren't tagged Homepage here — import them so a send doesn't drop them.`}
+          </p>
+          <Button
+            size="sm"
+            onClick={() => importMutation.mutate()}
+            disabled={importMutation.isPending}
+            className="h-7 text-xs gap-1.5 bg-purple-600 hover:bg-purple-500 text-white shrink-0"
+            data-testid="button-import-live-quotes"
+          >
+            {importMutation.isPending ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Download className="w-3 h-3" />
+            )}
+            {importMutation.isPending ? "Importing..." : "Import"}
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">

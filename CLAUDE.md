@@ -129,8 +129,13 @@ Airtable; the **Send Homepage** button on /quotes rewrites that file (whole
 set, newest service first, Final wins, idempotent) via
 `shared/send-homepage-quotes.ts` (BOTH API layers). The button compares the
 tagged set against GET `/api/homepage-quotes/live` (reads the file from
-GitHub) and lights purple when out of sync. The `Believe` tag has no site
-pipeline yet (believe.json is hand-written editorial content).
+GitHub) and lights purple when out of sync. An import banner offers to pull
+live-but-untagged quotes into Airtable (tags the record if the text already
+exists -- curly/straight-quote-insensitive match -- creates it as OG
+otherwise) so a send can't drop what's live today. **Add Quote** on /quotes
+creates hand-logged quotes (Source=OG, optional date + Homepage/Believe tags)
+via POST `/api/quotes`. The `Believe` tag has no site pipeline yet
+(believe.json is hand-written editorial content).
 The **Website Quotes page** (/website-quotes) is the review workspace: collapsible per-date
 groups (unreviewed open by default), inline On Website checkboxes + editable
 Final, per-group Send, Expand/Collapse all, Unreviewed filter, one-click copy

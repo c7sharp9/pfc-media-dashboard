@@ -470,6 +470,24 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/quotes", async (req, res) => {
+    try {
+      if (useSampleData) {
+        const newQuote = { id: `rec_quote_${Date.now()}`, fields: req.body };
+        SAMPLE_QUOTES.unshift(newQuote as any);
+        return res.json(newQuote);
+      }
+      const data = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}`,
+        { method: "POST", body: JSON.stringify({ fields: req.body }) }
+      );
+      res.json(data);
+    } catch (err: any) {
+      console.error("Error creating quote:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.patch("/api/quotes/:id", async (req, res) => {
     try {
       if (useSampleData) {
@@ -509,6 +527,20 @@ export async function registerRoutes(
   // the Quotes page). Reads src/_data/quotes.json from the site repo.
   app.get("/api/homepage-quotes/live", async (_req, res) => {
     try {
+      if (useSampleData) {
+        // Local dev: the real file needs GITHUB_TOKEN; return the known set so
+        // the sync/import UI is exercisable offline.
+        return res.json({
+          texts: [
+            "It’s time to make Heaven restless.",
+            "The offering God wants is the offering you are.",
+            "If we don’t tell time, time will tell us.",
+            "We have the power to move Heaven with our faith.",
+            "When you walk in the future, the past cannot find you.",
+            "To be born again means to lose confidence in sin.",
+          ],
+        });
+      }
       const texts = await fetchLiveHomepageQuotes();
       res.json({ texts });
     } catch (err: any) {

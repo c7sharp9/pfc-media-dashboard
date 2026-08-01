@@ -156,6 +156,16 @@ export default async (req: Request, context: Context) => {
       return json({ records });
     }
 
+    // POST /quotes — add a quote (Quotes page "Add" + homepage import)
+    if (path === "/quotes" && req.method === "POST") {
+      const body = await req.json();
+      const data = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}`,
+        { method: "POST", body: JSON.stringify({ fields: body }) }
+      );
+      return json(data);
+    }
+
     // PATCH /quotes/:id — update Quote Final / On Website / etc.
     const quoteMatch = path.match(/^\/quotes\/([^/]+)$/);
     if (quoteMatch && req.method === "DELETE") {
