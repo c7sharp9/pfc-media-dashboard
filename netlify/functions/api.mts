@@ -1,6 +1,11 @@
 import type { Context } from "@netlify/functions";
 import { sendToWebsite, type SendMode } from "../../shared/send-to-website";
 import { sendQuotesToWebsite } from "../../shared/send-quotes-to-website";
+import {
+  sendHomepageQuotes,
+  fetchLiveHomepageQuotes,
+  cleanQuoteText,
+} from "../../shared/send-homepage-quotes";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
 const BASE_ID = "appsXqsMSCaQAOxoc";
@@ -167,6 +172,41 @@ export default async (req: Request, context: Context) => {
         { method: "PATCH", body: JSON.stringify({ fields: body }) }
       );
       return json(data);
+    }
+
+    // GET /homepage-quotes/live — what the homepage carousel currently shows
+    // (for the sync indicator on the Quotes page).
+    if (path === "/homepage-quotes/live" && req.method === "GET") {
+      const texts = await fetchLiveHomepageQuotes();
+      return json({ texts });
+    }
+
+    // POST /homepage-quotes/send — publish the Homepage-tagged quotes to the
+    // site's home page carousel. Replaces the whole live set; idempotent.
+    if (path === "/homepage-quotes/send" && req.method === "POST") {
+      const formula = encodeURIComponent(`{Homepage Quote}=1`);
+      const qData = await airtableFetch(
+        `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`
+      );
+      // Newest service first; Final wins over Original.
+      const texts = (qData.records || [])
+        .sort((a: any, b: any) =>
+          String(b.fields["Service Date"] || "").localeCompare(
+            String(a.fields["Service Date"] || "")
+          )
+        )
+        .map((r: any) =>
+          cleanQuoteText(String(r.fields["Quote Final"] || r.fields["Quote Original"] || ""))
+        )
+        .filter(Boolean);
+      if (texts.length === 0) {
+        return json(
+          { error: "No quotes are tagged Homepage. Tag at least one before sending." },
+          400
+        );
+      }
+      const result = await sendHomepageQuotes(texts);
+      return json(result);
     }
 
     // POST /sermons/:id/send-quotes — publish checked quotes to the site page.

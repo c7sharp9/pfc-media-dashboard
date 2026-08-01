@@ -2,6 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { sendToWebsite, type SendMode } from "../shared/send-to-website";
 import { sendQuotesToWebsite } from "../shared/send-quotes-to-website";
+import {
+  sendHomepageQuotes,
+  fetchLiveHomepageQuotes,
+  cleanQuoteText,
+} from "../shared/send-homepage-quotes";
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT || "";
 const BASE_ID = "appsXqsMSCaQAOxoc";
@@ -199,6 +204,41 @@ const SAMPLE_EDITS = [
       "Editor Name": "Danielle",
       "Video URL": "https://drive.google.com/clip2",
       "JA Notes": "Please trim the intro shorter",
+    },
+  },
+];
+
+const SAMPLE_QUOTES = [
+  {
+    id: "rec_quote_1",
+    fields: {
+      "Quote Original": "We have the power to move Heaven with our faith.",
+      "Video Timecode": "12:45",
+      "Service Date": "2026-03-15",
+      "On Website": true,
+      "Homepage Quote": true,
+      Source: "Claude",
+      Speaker: "Gary",
+    },
+  },
+  {
+    id: "rec_quote_2",
+    fields: {
+      "Quote Original": "When you walk in the future, the past cannot find you.",
+      "Quote Final": "When you walk in the future, your past can't find you.",
+      "Video Timecode": "31:02",
+      "Service Date": "2026-03-15",
+      "On Website": true,
+      Source: "Claude",
+      Speaker: "Gary",
+    },
+  },
+  {
+    id: "rec_quote_3",
+    fields: {
+      "Quote Original": "If we don't tell time, time will tell us.",
+      "Service Date": "2025-11-02",
+      Source: "OG",
     },
   },
 ];
@@ -401,7 +441,13 @@ export async function registerRoutes(
   // Quotes for a service date (manual + AI together, sorted by Airtable order)
   app.get("/api/quotes", async (req, res) => {
     try {
-      if (useSampleData) return res.json({ records: [] });
+      if (useSampleData) {
+        const date = String(req.query.date || "");
+        const records = date
+          ? SAMPLE_QUOTES.filter((q) => q.fields["Service Date"] === date)
+          : SAMPLE_QUOTES;
+        return res.json({ records });
+      }
       const date = String(req.query.date || "");
       if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return res.status(400).json({ error: "date must be YYYY-MM-DD" });
@@ -427,7 +473,9 @@ export async function registerRoutes(
   app.patch("/api/quotes/:id", async (req, res) => {
     try {
       if (useSampleData) {
-        return res.status(503).json({ error: "Airtable is not connected (sample data mode)." });
+        const found = SAMPLE_QUOTES.find((q) => q.id === req.params.id);
+        if (found) Object.assign(found.fields, req.body);
+        return res.json(found || { id: req.params.id, fields: req.body });
       }
       const url = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}/${req.params.id}`;
       const data = await airtableFetch(url, {
@@ -453,6 +501,52 @@ export async function registerRoutes(
       res.json(data);
     } catch (err: any) {
       console.error("Error deleting quote:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // What the homepage carousel currently shows (for the sync indicator on
+  // the Quotes page). Reads src/_data/quotes.json from the site repo.
+  app.get("/api/homepage-quotes/live", async (_req, res) => {
+    try {
+      const texts = await fetchLiveHomepageQuotes();
+      res.json({ texts });
+    } catch (err: any) {
+      console.error("Error fetching live homepage quotes:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Publish the Homepage-tagged quotes to the site's home page carousel.
+  // Replaces the whole live set; idempotent when nothing changed.
+  app.post("/api/homepage-quotes/send", async (_req, res) => {
+    try {
+      if (useSampleData) {
+        return res.status(503).json({ error: "Airtable is not connected (sample data mode)." });
+      }
+      const formula = encodeURIComponent(`{Homepage Quote}=1`);
+      const qUrl = `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}?filterByFormula=${formula}&pageSize=100`;
+      const qData = await airtableFetch(qUrl);
+      // Newest service first; Final wins over Original.
+      const texts = (qData.records || [])
+        .sort((a: any, b: any) =>
+          String(b.fields["Service Date"] || "").localeCompare(
+            String(a.fields["Service Date"] || "")
+          )
+        )
+        .map((r: any) =>
+          cleanQuoteText(String(r.fields["Quote Final"] || r.fields["Quote Original"] || ""))
+        )
+        .filter(Boolean);
+      if (texts.length === 0) {
+        return res.status(400).json({
+          error: "No quotes are tagged Homepage. Tag at least one before sending.",
+        });
+      }
+      const result = await sendHomepageQuotes(texts);
+      res.json(result);
+    } catch (err: any) {
+      console.error("Error sending homepage quotes:", err.message);
       res.status(500).json({ error: err.message });
     }
   });

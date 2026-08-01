@@ -117,8 +117,20 @@ quality bar as Gary's.
 Quotes split into two corpora via `Source`: pipeline quotes (Claude/Manual,
 tied to sermons) and **OG** (733 legacy hand-logged social one-liners, date +
 quote only -- not part of the website pipeline). The **Quotes page** (/quotes)
-is display-only browsing for the team: toggle chips for Sermon Quotes (only
-the KEPT/On Website ones) and OG Quotes, search, one-click copy.
+is the team's browsing wall: toggle chips for Sermon Quotes (only the KEPT/On
+Website ones) and OG Quotes, search, one-click copy, click-to-edit wording
+(writes `Quote Final`, manual-wins; editing an On Website quote shows an
+"edited -- re-send this date's Moments" hint since site pages are snapshots),
+Believe/Homepage tag toggles, delete.
+
+**Homepage quotes:** the site's home page carousel reads `src/_data/quotes.json`
+in pfc-website -- NOT Airtable-live. Tagging `Homepage Quote` only stages in
+Airtable; the **Send Homepage** button on /quotes rewrites that file (whole
+set, newest service first, Final wins, idempotent) via
+`shared/send-homepage-quotes.ts` (BOTH API layers). The button compares the
+tagged set against GET `/api/homepage-quotes/live` (reads the file from
+GitHub) and lights purple when out of sync. The `Believe` tag has no site
+pipeline yet (believe.json is hand-written editorial content).
 The **Website Quotes page** (/website-quotes) is the review workspace: collapsible per-date
 groups (unreviewed open by default), inline On Website checkboxes + editable
 Final, per-group Send, Expand/Collapse all, Unreviewed filter, one-click copy
@@ -127,7 +139,8 @@ successful send -- a send IS the review; quotes seeded later arrive
 unreviewed and flip the group back to Needs review. Legacy manual quotes were
 grandfathered as Reviewed.
 Endpoints: GET `/api/quotes?date` (no date = whole table), PATCH +
-DELETE `/api/quotes/:id`, POST `/api/sermons/:id/send-quotes`.
+DELETE `/api/quotes/:id`, POST `/api/sermons/:id/send-quotes`,
+GET `/api/homepage-quotes/live`, POST `/api/homepage-quotes/send`.
 
 ## Sermon Prepare (AI descriptions + moment quotes)
 
