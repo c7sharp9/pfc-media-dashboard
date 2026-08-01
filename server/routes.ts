@@ -510,7 +510,9 @@ export async function registerRoutes(
   app.delete("/api/quotes/:id", async (req, res) => {
     try {
       if (useSampleData) {
-        return res.status(503).json({ error: "Airtable is not connected (sample data mode)." });
+        const idx = SAMPLE_QUOTES.findIndex((q) => q.id === req.params.id);
+        if (idx >= 0) SAMPLE_QUOTES.splice(idx, 1);
+        return res.json({ deleted: true, id: req.params.id });
       }
       const data = await airtableFetch(
         `https://api.airtable.com/v0/${BASE_ID}/${QUOTES_TABLE}/${req.params.id}`,

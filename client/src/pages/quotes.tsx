@@ -557,10 +557,15 @@ export default function QuotesBrowsePage() {
   // first Send Homepage can't silently drop what's live today.
   const liveNotTagged = useMemo(() => {
     if (!liveTexts) return [];
+    // Index records by their current text AND their Quote Original: a quote
+    // edited here (Final) still matches its pre-edit wording on the live
+    // site, so it doesn't masquerade as an untracked quote.
     const byKey = new Map<string, QuoteRecord>();
     for (const r of data?.records || []) {
-      const k = matchKey(displayText(r));
-      if (k && !byKey.has(k)) byKey.set(k, r);
+      for (const t of [displayText(r), clean(r.fields["Quote Original"] || "")]) {
+        const k = matchKey(t);
+        if (k && !byKey.has(k)) byKey.set(k, r);
+      }
     }
     return liveTexts
       .map((t) => clean(t))
@@ -568,6 +573,11 @@ export default function QuotesBrowsePage() {
       .map((text) => ({ text, existing: byKey.get(matchKey(text)) }))
       .filter(({ existing }) => !existing || !existing.fields["Homepage Quote"]);
   }, [liveTexts, data]);
+
+  // Only nag when a live quote is missing from Airtable ENTIRELY -- that's
+  // the only case a send would truly lose. "Exists but untagged" is usually a
+  // deliberate removal waiting on its send; re-importing would undo it.
+  const liveUntracked = liveNotTagged.filter(({ existing }) => !existing);
 
   const importMutation = useMutation({
     mutationFn: async () => {
@@ -720,7 +730,7 @@ export default function QuotesBrowsePage() {
         </div>
       </div>
 
-      {liveNotTagged.length > 0 && (
+      {liveUntracked.length > 0 && (
         <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-2">
           <p className="text-xs text-purple-200/90">
             {liveNotTagged.length === 1
