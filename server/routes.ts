@@ -770,6 +770,13 @@ export async function registerRoutes(
       if (gh.status !== 204) {
         return res.status(502).json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` });
       }
+      // Stamp the start so the UI can show "generating" until the content lands.
+      if (!useSampleData) {
+        await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
+        }).catch(() => {});
+      }
       res.json({ ok: true });
     } catch (err: any) {
       console.error("Error preparing sermon:", err.message);
@@ -803,6 +810,13 @@ export async function registerRoutes(
       });
       if (gh.status !== 204) {
         return res.status(502).json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` });
+      }
+      // Stamp the start so the UI can show "generating" until the content lands.
+      if (!useSampleData) {
+        await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
+        }).catch(() => {});
       }
       res.json({ ok: true });
     } catch (err: any) {

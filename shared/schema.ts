@@ -12,6 +12,7 @@ export interface Sermon {
     "Long Description"?: string;
     "Manual Long Description"?: string;
     "Descriptions Reviewed"?: boolean;
+    "AI Job Started"?: string;
     "Skip Website"?: boolean;
     "Sermon URL"?: string;
     "General Notes"?: string;
@@ -93,6 +94,7 @@ export const updateSermonSchema = z.object({
   "Audio URL": z.string().url().optional().or(z.literal("")),
   "Transcription URL": z.string().url().optional().or(z.literal("")),
   "Added to Drive": z.boolean().optional(),
+  "AI Job Started": z.string().optional().or(z.literal("")),
   "YouTube Trimmed URL": z.string().url().optional().or(z.literal("")),
   "YouTube Title": z.string().optional(),
   "YouTube Hidden": z.boolean().optional(),

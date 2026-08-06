@@ -336,6 +336,11 @@ export default async (req: Request, context: Context) => {
       if (gh.status !== 204) {
         return json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` }, 502);
       }
+      // Stamp the start so the UI can show "generating" until the content lands.
+      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/sermonPrepMatch[1]`, {
+        method: "PATCH",
+        body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
+      }).catch(() => {});
       return json({ ok: true });
     }
 
@@ -365,6 +370,11 @@ export default async (req: Request, context: Context) => {
       if (gh.status !== 204) {
         return json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` }, 502);
       }
+      // Stamp the start so the UI can show "generating" until the content lands.
+      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/sermonDescriptMatch[1]`, {
+        method: "PATCH",
+        body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
+      }).catch(() => {});
       return json({ ok: true });
     }
 

@@ -261,12 +261,16 @@ export default function SermonDetail() {
   const [title, setTitle] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
+  // While an AI job is in flight the record is refetched on a timer, so the
+  // descriptions and moments appear on their own without a manual refresh.
+  const [aiPolling, setAiPolling] = useState(false);
   const { data: sermon, isLoading } = useQuery<Sermon>({
     queryKey: ["/api/sermons", params.id],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/sermons/${params.id}`);
       return res.json();
     },
+    refetchInterval: aiPolling ? 15000 : false,
   });
 
   // Edits for this sermon: fetch only this service date's edits, then prefer
@@ -439,6 +443,22 @@ export default function SermonDetail() {
   if (isSunday && !fields["YouTube Trimmed URL"]) sendMissing.push("YouTube trimmed video");
   if (!isSunday && !fields["Wednesday YouTube Link"]) sendMissing.push("YouTube link");
   const canSend = sendMissing.length === 0 && !hasChanges && !sendMutation.isPending;
+
+  // AI job progress. "AI Job Started" is stamped when Prepare/Descript
+  // dispatches; the job is considered finished once a description lands, so the
+  // badge clears itself without CI having to report back.
+  const aiStartedRaw = fields["AI Job Started"] || "";
+  const aiStartedAt = aiStartedRaw ? new Date(aiStartedRaw) : null;
+  const aiProduced = !!(
+    (fields["Short Description"] || "").trim() || (fields["Long Description"] || "").trim()
+  );
+  const aiRunning = !!aiStartedAt && !isNaN(aiStartedAt.getTime()) && !aiProduced;
+  const aiMinutes = aiStartedAt ? Math.floor((Date.now() - aiStartedAt.getTime()) / 60000) : 0;
+  // These jobs finish in ~2-10 min. Past 25 the run has almost certainly failed
+  // or is stuck queued (a GitHub Actions outage looks exactly like this).
+  const aiStalled = aiRunning && aiMinutes >= 25;
+
+  useEffect(() => { setAiPolling(aiRunning && !aiStalled); }, [aiRunning, aiStalled]);
 
   // Descriptions publish on their own, onto a page the sermon already created.
   const hasDescription = !!(
@@ -855,18 +875,39 @@ export default function SermonDetail() {
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Additional Info
         </h2>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5 h-7 text-xs"
-          disabled={prepareMutation.isPending}
-          onClick={() => prepareMutation.mutate()}
-          data-testid="button-prepare-sermon"
-          title="Draft descriptions + moments from the transcript with AI"
-        >
-          <Wand2 className="w-3 h-3" />
-          {prepareMutation.isPending ? "Starting..." : "Prepare with AI"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {aiRunning && !aiStalled && (
+            <span
+              className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/30 rounded-full px-2 py-1"
+              data-testid="badge-ai-generating"
+              title="Started at the time shown; this page refreshes itself every 15 seconds"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Generating{aiMinutes > 0 ? ` · ${aiMinutes}m` : ""}
+            </span>
+          )}
+          {aiStalled && (
+            <span
+              className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-1"
+              data-testid="badge-ai-stalled"
+              title="Nothing has come back. Check the Actions tab on the website repo, then run it again."
+            >
+              No result after {aiMinutes}m
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-7 text-xs"
+            disabled={prepareMutation.isPending}
+            onClick={() => prepareMutation.mutate()}
+            data-testid="button-prepare-sermon"
+            title="Draft descriptions + moments from the transcript with AI"
+          >
+            <Wand2 className="w-3 h-3" />
+            {prepareMutation.isPending ? "Starting..." : "Prepare with AI"}
+          </Button>
+        </div>
       </div>
       <div className="space-y-3 mb-4">
         <div className="space-y-1">
