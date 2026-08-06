@@ -274,6 +274,29 @@ export default function SermonDetail() {
     refetchInterval: aiPolling ? 15000 : false,
   });
 
+  // AI job progress. "AI Job Started" is stamped when Prepare/Descript
+  // dispatches; the job counts as finished once a description lands, so this
+  // clears itself without CI having to report back.
+  //
+  // Computed here, ABOVE the isLoading / !sermon early returns, because the
+  // useEffect below must run on every render -- placing a hook after an early
+  // return changes the hook count between renders and React bails out
+  // (error #310, which blanks the page).
+  const aiFields: Record<string, any> = sermon?.fields || {};
+  const aiStartedRaw = aiFields["AI Job Started"] || "";
+  const aiStartedAt = aiStartedRaw ? new Date(aiStartedRaw) : null;
+  const aiProduced = !!(
+    String(aiFields["Short Description"] || "").trim() ||
+    String(aiFields["Long Description"] || "").trim()
+  );
+  const aiRunning = !!aiStartedAt && !isNaN(aiStartedAt.getTime()) && !aiProduced;
+  const aiMinutes = aiStartedAt ? Math.floor((Date.now() - aiStartedAt.getTime()) / 60000) : 0;
+  // These jobs finish in ~2-10 min. Past 25 the run has almost certainly failed
+  // or is stuck queued (a GitHub Actions outage looks exactly like this).
+  const aiStalled = aiRunning && aiMinutes >= 25;
+
+  useEffect(() => { setAiPolling(aiRunning && !aiStalled); }, [aiRunning, aiStalled]);
+
   // Edits for this sermon: fetch only this service date's edits, then prefer
   // the real Sermon Link record ID (date match is the fallback for older edits).
   const serviceDate = sermon?.fields["Service"];
@@ -444,22 +467,6 @@ export default function SermonDetail() {
   if (isSunday && !fields["YouTube Trimmed URL"]) sendMissing.push("YouTube trimmed video");
   if (!isSunday && !fields["Wednesday YouTube Link"]) sendMissing.push("YouTube link");
   const canSend = sendMissing.length === 0 && !hasChanges && !sendMutation.isPending;
-
-  // AI job progress. "AI Job Started" is stamped when Prepare/Descript
-  // dispatches; the job is considered finished once a description lands, so the
-  // badge clears itself without CI having to report back.
-  const aiStartedRaw = fields["AI Job Started"] || "";
-  const aiStartedAt = aiStartedRaw ? new Date(aiStartedRaw) : null;
-  const aiProduced = !!(
-    (fields["Short Description"] || "").trim() || (fields["Long Description"] || "").trim()
-  );
-  const aiRunning = !!aiStartedAt && !isNaN(aiStartedAt.getTime()) && !aiProduced;
-  const aiMinutes = aiStartedAt ? Math.floor((Date.now() - aiStartedAt.getTime()) / 60000) : 0;
-  // These jobs finish in ~2-10 min. Past 25 the run has almost certainly failed
-  // or is stuck queued (a GitHub Actions outage looks exactly like this).
-  const aiStalled = aiRunning && aiMinutes >= 25;
-
-  useEffect(() => { setAiPolling(aiRunning && !aiStalled); }, [aiRunning, aiStalled]);
 
   // Descriptions publish on their own, onto a page the sermon already created.
   const hasDescription = !!(
