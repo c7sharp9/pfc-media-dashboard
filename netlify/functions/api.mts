@@ -1,6 +1,7 @@
 import type { Context } from "@netlify/functions";
 import { sendToWebsite, type SendMode } from "../../shared/send-to-website";
 import { sendQuotesToWebsite } from "../../shared/send-quotes-to-website";
+import { logActivitySafe } from "../../shared/activity-log";
 import {
   sendHomepageQuotes,
   fetchLiveHomepageQuotes,
@@ -251,6 +252,18 @@ export default async (req: Request, context: Context) => {
           body: JSON.stringify({ records: toMark.slice(i, i + 10) }),
         });
       }
+      // Mark the send for the completion tally + log it.
+      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sendQuotesMatch[1]}`, {
+        method: "PATCH",
+        body: JSON.stringify({ fields: { "Moments Sent": new Date().toISOString() } }),
+      }).catch(() => {});
+      await logActivitySafe(
+        SERMON_TABLE, sendQuotesMatch[1],
+        result.status === "removed"
+          ? "Moments removed from the website"
+          : `Sent ${result.count} moments to the website (${result.status})`,
+        AIRTABLE_PAT
+      );
       return json(result);
     }
 
@@ -268,12 +281,23 @@ export default async (req: Request, context: Context) => {
         if (body?.mode === "sermon" || body?.mode === "descriptions") mode = body.mode;
       } catch { /* no body -> "all" */ }
       const result = await sendToWebsite(record.fields || {}, mode);
+      const patch: Record<string, any> = {};
       if (result.status !== "unchanged" || record.fields?.["Sermon URL"] !== result.pageUrl) {
-        await airtableFetch(recUrl, {
-          method: "PATCH",
-          body: JSON.stringify({ fields: { "Sermon URL": result.pageUrl } }),
-        });
+        patch["Sermon URL"] = result.pageUrl;
       }
+      // Descriptions publish separately, so they get their own completion marker.
+      if (mode === "descriptions" || mode === "all") {
+        patch["Descriptions Sent"] = new Date().toISOString();
+      }
+      if (Object.keys(patch).length) {
+        await airtableFetch(recUrl, { method: "PATCH", body: JSON.stringify({ fields: patch }) });
+      }
+      const what = mode === "descriptions" ? "descriptions" : mode === "sermon" ? "sermon" : "sermon + descriptions";
+      await logActivitySafe(
+        SERMON_TABLE, sendMatch[1],
+        `Sent ${what} to the website (${result.status})`,
+        AIRTABLE_PAT
+      );
       return json(result);
     }
 
@@ -337,10 +361,11 @@ export default async (req: Request, context: Context) => {
         return json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` }, 502);
       }
       // Stamp the start so the UI can show "generating" until the content lands.
-      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/sermonPrepMatch[1]`, {
+      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sermonPrepMatch[1]}`, {
         method: "PATCH",
         body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
       }).catch(() => {});
+      await logActivitySafe(SERMON_TABLE, sermonPrepMatch[1], "Prepare with AI dispatched", AIRTABLE_PAT);
       return json({ ok: true });
     }
 
@@ -371,10 +396,11 @@ export default async (req: Request, context: Context) => {
         return json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` }, 502);
       }
       // Stamp the start so the UI can show "generating" until the content lands.
-      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/sermonDescriptMatch[1]`, {
+      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${sermonDescriptMatch[1]}`, {
         method: "PATCH",
         body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
       }).catch(() => {});
+      await logActivitySafe(SERMON_TABLE, sermonDescriptMatch[1], "Generate Transcript + Descriptions dispatched", AIRTABLE_PAT);
       return json({ ok: true });
     }
 
@@ -396,6 +422,7 @@ export default async (req: Request, context: Context) => {
       if (gh.status !== 204) {
         return json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` }, 502);
       }
+      await logActivitySafe(EDITS_TABLE, prepareMatch[1], "Recap Prepare dispatched", AIRTABLE_PAT);
       return json({ ok: true });
     }
 
@@ -418,6 +445,7 @@ export default async (req: Request, context: Context) => {
         const text = await gh.text();
         return json({ error: `GitHub dispatch failed (${gh.status}): ${text}` }, 502);
       }
+      await logActivitySafe(EDITS_TABLE, publishMatch[1], "Send to Website dispatched", AIRTABLE_PAT);
       return json({ ok: true });
     }
 

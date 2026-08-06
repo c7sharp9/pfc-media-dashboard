@@ -27,8 +27,19 @@ function computeProgress(sermon: Sermon): number {
   const f = sermon.fields;
   const platform = f["Platform"];
 
+  // The three website pieces publish independently (sermon / descriptions /
+  // moments), so each counts toward completion on its own. "Website Done" is
+  // still the human "Verified Live" check on top of them.
+  const published = [
+    !!f["Sermon URL"],          // Send Sermon to Website
+    !!f["Descriptions Sent"],   // Send Descriptions to Website
+    !!f["Moments Sent"],        // Send Moments to Website
+    !!f["Website Done"],        // Verified Live
+  ];
+
   if (platform === "Sunday") {
-    // 7 steps: Full Service, Trimmed Service, Transcription, YouTube, YouTube Hide, Facebook, Website
+    // 10 steps: Full Service, Trimmed Service, Transcription, YouTube,
+    // YouTube Hide, Facebook + the four website steps.
     const steps = [
       !!f["Video URL"],
       !!(f["Trimmed Video URL"] && f["Audio URL"]),
@@ -36,18 +47,19 @@ function computeProgress(sermon: Sermon): number {
       !!f["YouTube Trimmed URL"],
       !!f["YouTube Hidden"],
       !!f["Facebook Done"],
-      !!f["Website Done"],
+      ...published,
     ];
     return Math.round((steps.filter(Boolean).length / steps.length) * 100);
   } else if (platform === "Wednesday") {
-    // 6 steps: Clean Edit, Audio, Transcription, Trim Live Streams, YouTube Link, Website
+    // 9 steps: Clean Edit, Audio, Transcription, Trim Live Streams,
+    // YouTube Link + the four website steps.
     const steps = [
       !!f["Video URL"],
       !!f["Audio URL"],
       !!f["Transcription URL"],
       !!(f["Facebook Done"] && f["Wednesday YouTube Trimmed"]),
       !!f["Wednesday YouTube Link"],
-      !!f["Website Done"],
+      ...published,
     ];
     return Math.round((steps.filter(Boolean).length / steps.length) * 100);
   }

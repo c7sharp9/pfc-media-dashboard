@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { UrlField, CheckboxField, OpenLinkButton, fieldRing } from "@/components/fields";
 import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
 import NewEditDialog from "@/components/new-edit-dialog";
+import ActivityLog from "@/components/activity-log";
 import type { Sermon, Edit } from "@shared/schema";
 
 interface WorkflowStepProps {
@@ -1162,6 +1163,7 @@ export default function SermonDetail() {
       </div>{/* close grid */}
 
       <WebsiteQuotes sermonId={params.id!} serviceDate={fields["Service"]} />
+      <ActivityLog value={fields["Activity"]} />
 
       {/* Save floating button on mobile */}
       {hasChanges && (

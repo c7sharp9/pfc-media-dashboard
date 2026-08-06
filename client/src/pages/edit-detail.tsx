@@ -35,6 +35,7 @@ import { formatLongDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { OpenLinkButton, fieldRing } from "@/components/fields";
 import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
+import ActivityLog from "@/components/activity-log";
 import type { Edit, Sermon } from "@shared/schema";
 
 const SHORT_DESC_MAX = 125; // ~two lines on the website at normal screen width
@@ -659,6 +660,8 @@ export default function EditDetailPage() {
       </div>
 
       {linkedSermon && <SermonReference sermon={linkedSermon} />}
+
+      <ActivityLog value={fields["Activity"]} />
 
       {/* Floating save on mobile */}
       {showSave && (

@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { sendToWebsite, type SendMode } from "../shared/send-to-website";
 import { sendQuotesToWebsite } from "../shared/send-quotes-to-website";
+import { logActivitySafe } from "../shared/activity-log";
 import {
   sendHomepageQuotes,
   fetchLiveHomepageQuotes,
@@ -619,6 +620,14 @@ export async function registerRoutes(
           body: JSON.stringify({ records: toMark.slice(i, i + 10) }),
         });
       }
+      // Mark the send for the completion tally + log it.
+      await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ fields: { "Moments Sent": new Date().toISOString() } }),
+      }).catch(() => {});
+      await logActivitySafe(SERMON_TABLE, req.params.id,
+        result.status === "removed" ? "Moments removed from the website"
+          : `Sent ${result.count} moments to the website (${result.status})`, AIRTABLE_PAT);
       res.json(result);
     } catch (err: any) {
       console.error("Error sending quotes to website:", err.message);
@@ -640,12 +649,19 @@ export async function registerRoutes(
       const mode: SendMode =
         bodyMode === "sermon" || bodyMode === "descriptions" ? bodyMode : "all";
       const result = await sendToWebsite(record.fields || {}, mode);
+      const patch: Record<string, any> = {};
       if (result.status !== "unchanged" || record.fields?.["Sermon URL"] !== result.pageUrl) {
-        await airtableFetch(url, {
-          method: "PATCH",
-          body: JSON.stringify({ fields: { "Sermon URL": result.pageUrl } }),
-        });
+        patch["Sermon URL"] = result.pageUrl;
       }
+      // Descriptions publish separately, so they get their own completion marker.
+      if (mode === "descriptions" || mode === "all") {
+        patch["Descriptions Sent"] = new Date().toISOString();
+      }
+      if (Object.keys(patch).length) {
+        await airtableFetch(url, { method: "PATCH", body: JSON.stringify({ fields: patch }) });
+      }
+      const what = mode === "descriptions" ? "descriptions" : mode === "sermon" ? "sermon" : "sermon + descriptions";
+      await logActivitySafe(SERMON_TABLE, req.params.id, `Sent ${what} to the website (${result.status})`, AIRTABLE_PAT);
       res.json(result);
     } catch (err: any) {
       console.error("Error sending sermon to website:", err.message);
@@ -734,6 +750,7 @@ export async function registerRoutes(
   app.post("/api/edits/:id/publish", async (req, res) => {
     try {
       await dispatchRecap("publish-recap", req.params.id);
+      await logActivitySafe(EDITS_TABLE, req.params.id, "Send to Website dispatched", AIRTABLE_PAT);
       res.json({ ok: true });
     } catch (err: any) {
       console.error("Error publishing recap:", err.message);
@@ -777,6 +794,7 @@ export async function registerRoutes(
           body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
         }).catch(() => {});
       }
+      await logActivitySafe(SERMON_TABLE, req.params.id, "Prepare with AI dispatched", AIRTABLE_PAT);
       res.json({ ok: true });
     } catch (err: any) {
       console.error("Error preparing sermon:", err.message);
@@ -818,6 +836,7 @@ export async function registerRoutes(
           body: JSON.stringify({ fields: { "AI Job Started": new Date().toISOString() } }),
         }).catch(() => {});
       }
+      await logActivitySafe(SERMON_TABLE, req.params.id, "Generate Transcript + Descriptions dispatched", AIRTABLE_PAT);
       res.json({ ok: true });
     } catch (err: any) {
       console.error("Error starting Descript transcription:", err.message);
@@ -828,6 +847,7 @@ export async function registerRoutes(
   app.post("/api/edits/:id/prepare", async (req, res) => {
     try {
       await dispatchRecap("prepare-recap", req.params.id);
+      await logActivitySafe(EDITS_TABLE, req.params.id, "Recap Prepare dispatched", AIRTABLE_PAT);
       res.json({ ok: true });
     } catch (err: any) {
       console.error("Error preparing recap:", err.message);
