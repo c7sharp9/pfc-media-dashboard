@@ -243,6 +243,21 @@ Configured in `vite.config.ts`:
 
 ## Gotchas
 
+- **Airtable base access: media staff are EDITORS, not Creators** (set 2026-08-06).
+  A Creator deleted the Edits table's `Sermon Link` field, which broke *every*
+  New Edit save with `UNKNOWN_FIELD_NAME` and destroyed all 38 edit->sermon
+  links. Editors can change data but not schema, so this cannot recur. The
+  field was recreated (Airtable auto-adds the reciprocal `Edits` field on
+  Sermon General -- deleting either half breaks both) and 37 of 38 links were
+  rebuilt by broadcast date + one exact title match; "Get Rid of Your Gophers"
+  (2023-02-12) stays unlinked because no sermon record exists for that date.
+  **If a field disappears again, try Airtable base history FIRST** -- restoring
+  brings back the field *and its data*, where recreating loses the data.
+  Load-bearing fields that look like clutter: `Sermon Link`, `Stream ID`,
+  `Transcript`, `Activity`, and the four AUTO description fields.
+  The base also holds dormant worship tables (Worship Sets, Songs, Singers,
+  Songs on Deck, Equipment) -- that data now lives in the setlist app.
+
 - **The API exists twice.** `server/routes.ts` serves local dev; `netlify/functions/api.mts` serves production. They are independent implementations of the same endpoints -- any route change MUST be made in both files or production silently diverges from local dev (this has caused real bugs).
 - **Airtable is the database.** There is no local SQLite in production. Drizzle config exists but routes bypass it entirely -- all reads/writes go to Airtable REST API.
 - **Sample data fallback:** If `AIRTABLE_PAT` is missing or Airtable is unreachable, the server silently falls back to in-memory sample data. This makes local dev possible without credentials but can mask connection issues.
