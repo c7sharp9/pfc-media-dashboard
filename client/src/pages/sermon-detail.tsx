@@ -140,6 +140,11 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
       return res.json();
     },
     onSuccess: (result: { status: string; count: number; pageUrl: string }) => {
+      // Refetch the sermon too: the send stamps "Moments Sent" (completion
+      // tally) and writes an Activity line, neither of which lives in the
+      // quotes query.
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons", sermonId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes", { date }] });
       toast({
         title:
           result.status === "unchanged"
@@ -388,12 +393,17 @@ export default function SermonDetail() {
       const res = await apiRequest("POST", `/api/sermons/${params.id}/prepare`);
       return res.json();
     },
-    onSuccess: () =>
+    onSuccess: () => {
+      // Refetch: this is what surfaces the new Activity line, and what lets the
+      // client see "AI Job Started" -- which is what turns on the polling and
+      // the Generating badge. Without it nothing appears until a manual reload.
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons", params.id] });
       toast({
         title: "Prepare started",
         description:
-          "Claude is drafting the descriptions and moments from the transcript. Refresh in a few minutes to review.",
-      }),
+          "Claude is drafting the descriptions and moments from the transcript. This page updates itself as they land.",
+      });
+    },
     onError: (error: Error) =>
       toast({ title: "Prepare failed", description: error.message, variant: "destructive" }),
   });
@@ -403,12 +413,14 @@ export default function SermonDetail() {
       const res = await apiRequest("POST", `/api/sermons/${params.id}/descript`);
       return res.json();
     },
-    onSuccess: () =>
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sermons", params.id] });
       toast({
         title: "Descript started",
         description:
-          "The audio is uploading to Descript. Once it transcribes, the transcript URL, descriptions and moments fill in automatically. Refresh in ~10 minutes.",
-      }),
+          "The audio is uploading to Descript. The transcript, descriptions and moments fill in here as they land.",
+      });
+    },
     onError: (error: Error) =>
       toast({ title: "Descript failed", description: error.message, variant: "destructive" }),
   });
