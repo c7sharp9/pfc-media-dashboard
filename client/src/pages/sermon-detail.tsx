@@ -129,8 +129,21 @@ function WebsiteQuotes({ sermonId, serviceDate, polling }: { sermonId: string; s
   // A send stamps Reviewed on every quote for the date, so: not Reviewed =
   // arrived since the last send (label it New); Reviewed but unchecked = a
   // deliberate reject (park it out of the way, recoverable).
-  const rejected = quotes.filter((q) => (q.fields as any)["Reviewed"] && !q.fields["On Website"]);
-  const current = quotes.filter((q) => !((q.fields as any)["Reviewed"] && !q.fields["On Website"]));
+  //
+  // Membership is SNAPSHOTTED when the list first loads: unchecking a moment
+  // must flip its checkbox and otherwise leave it exactly where it is -- a
+  // card that vanishes into a collapsed section under the cursor reads as
+  // "nothing happened". Rejects park on the next visit. The one exception is
+  // re-checking a rejected moment, which rescues it into the main list at
+  // once (that movement IS the feedback).
+  const [rejectedIds, setRejectedIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (rejectedIds === null && quotes.length > 0) {
+      setRejectedIds(new Set(quotes.filter((q) => (q.fields as any)["Reviewed"] && !q.fields["On Website"]).map((q) => q.id)));
+    }
+  }, [rejectedIds, quotes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rejected = quotes.filter((q) => rejectedIds?.has(q.id));
+  const current = quotes.filter((q) => !rejectedIds?.has(q.id));
   const [showRejected, setShowRejected] = useState(false);
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -140,9 +153,23 @@ function WebsiteQuotes({ sermonId, serviceDate, polling }: { sermonId: string; s
       const res = await apiRequest("PATCH", `/api/quotes/${id}`, fields);
       return res.json();
     },
+    // Optimistic: the checkbox must respond on the CLICK, not a round-trip
+    // later -- a controlled input that waits for the refetch reads as dead.
+    onMutate: async ({ id, fields: patch }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/quotes", { date }] });
+      const prev = queryClient.getQueryData<{ records: QuoteRecord[] }>(["/api/quotes", { date }]);
+      queryClient.setQueryData(["/api/quotes", { date }], (old: any) =>
+        old
+          ? { ...old, records: old.records.map((r: any) => (r.id === id ? { ...r, fields: { ...r.fields, ...patch } } : r)) }
+          : old
+      );
+      return { prev };
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/quotes", { date }] }),
-    onError: (error: Error) =>
-      toast({ title: "Error", description: error.message, variant: "destructive" }),
+    onError: (error: Error, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["/api/quotes", { date }], ctx.prev);
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
   const sendQuotesMutation = useMutation({
@@ -186,9 +213,16 @@ function WebsiteQuotes({ sermonId, serviceDate, polling }: { sermonId: string; s
                     type="checkbox"
                     className="mt-1 h-3.5 w-3.5 accent-primary cursor-pointer shrink-0"
                     checked={!!q.fields["On Website"]}
-                    onChange={(e) =>
-                      patchMutation.mutate({ id: q.id, fields: { "On Website": e.target.checked } })
-                    }
+                    onChange={(e) => {
+                      patchMutation.mutate({ id: q.id, fields: { "On Website": e.target.checked } });
+                      if (e.target.checked && rejectedIds?.has(q.id)) {
+                        setRejectedIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(q.id);
+                          return next;
+                        });
+                      }
+                    }}
                     aria-label="Publish this moment"
                   />
                   <div className="flex-1 min-w-0 space-y-1">
