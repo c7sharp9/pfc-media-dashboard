@@ -530,11 +530,14 @@ export default function EditDetailPage() {
                 <ExpandTextarea
                   value={fields["AI Direction"] || ""}
                   onChange={(e) => set("AI Direction", e.target.value)}
-                  placeholder="Optional. What the descriptions should lead with or make sure to cover. Applied next time Prepare runs."
+                  placeholder="e.g. lead with the part about grace being a gift you use, not shelve"
                   collapsedHeight="h-[52px]"
                   className={`text-xs bg-background${fieldRing("optional", fields["AI Direction"])}`}
                   data-testid="input-ai-direction"
                 />
+                <p className="text-[10px] text-muted-foreground/70">
+                  Optional. Steers what the descriptions lead with. Applied next time Prepare runs.
+                </p>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">

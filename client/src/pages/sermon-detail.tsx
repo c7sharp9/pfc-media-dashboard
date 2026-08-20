@@ -949,10 +949,13 @@ export default function SermonDetail() {
           <ExpandTextarea
             value={fields["AI Direction"] || ""}
             onChange={(e) => handleFieldChange("AI Direction", e.target.value)}
-            placeholder="Optional. What to emphasise or make sure gets picked up, e.g. 'the part about believing God and an architecture imprinted on our minds'. Steers what the AI leads with and which moments it chooses. It never changes how moments are quoted."
+            placeholder="e.g. the part about believing God and an architecture imprinted on our minds"
             collapsedHeight="h-[60px]" className={`text-xs bg-background${fieldRing("optional", fields["AI Direction"])}`}
             data-testid="input-ai-direction"
           />
+          <p className="text-[10px] text-muted-foreground/70">
+            Optional. Steers what the descriptions lead with and which moments get picked. Never changes how moments are quoted.
+          </p>
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between">
