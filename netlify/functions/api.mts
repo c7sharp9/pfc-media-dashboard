@@ -347,6 +347,9 @@ export default async (req: Request, context: Context) => {
           error: "No transcript or audio yet. Prepare needs either the Descript transcription or an Audio file (it'll transcribe the audio with Whisper). Add one and re-run.",
         }, 422);
       }
+      // Re-picking moments is opt-in: a plain Prepare must never disturb a
+      // moments list the team has already worked through.
+      const forceQuotes = await req.json().then((b: any) => b?.forceQuotes === true).catch(() => false);
       const gh = await fetch("https://api.github.com/repos/c7sharp9/pfc-website/dispatches", {
         method: "POST",
         headers: {
@@ -355,7 +358,7 @@ export default async (req: Request, context: Context) => {
           "X-GitHub-Api-Version": "2022-11-28",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ event_type: "prepare-sermon", client_payload: { sermonId: sermonPrepMatch[1] } }),
+        body: JSON.stringify({ event_type: "prepare-sermon", client_payload: { sermonId: sermonPrepMatch[1], forceQuotes } }),
       });
       if (gh.status !== 204) {
         return json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` }, 502);

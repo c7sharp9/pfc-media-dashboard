@@ -12,6 +12,7 @@ export interface Sermon {
     "Long Description"?: string;
     "Manual Long Description"?: string;
     "Descriptions Reviewed"?: boolean;
+    "AI Direction"?: string;
     "AI Job Started"?: string;
     "Descriptions Sent"?: string;
     "Moments Sent"?: string;
@@ -68,6 +69,7 @@ export interface Edit {
     "Manual Short Website Description"?: string;
     "Long Description"?: string;
     "Manual Long Description"?: string;
+    "AI Direction"?: string;
     "XML"?: string;
     "Activity"?: string;
   };

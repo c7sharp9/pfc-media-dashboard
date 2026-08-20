@@ -782,7 +782,7 @@ export async function registerRoutes(
           "X-GitHub-Api-Version": "2022-11-28",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ event_type: "prepare-sermon", client_payload: { sermonId: req.params.id } }),
+        body: JSON.stringify({ event_type: "prepare-sermon", client_payload: { sermonId: req.params.id, forceQuotes: req.body?.forceQuotes === true } }),
       });
       if (gh.status !== 204) {
         return res.status(502).json({ error: `GitHub dispatch failed (${gh.status}): ${await gh.text()}` });

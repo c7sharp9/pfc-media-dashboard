@@ -389,19 +389,20 @@ export default function SermonDetail() {
   });
 
   const prepareMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/sermons/${params.id}/prepare`);
+    mutationFn: async (forceQuotes: boolean = false) => {
+      const res = await apiRequest("POST", `/api/sermons/${params.id}/prepare`, { forceQuotes });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, forceQuotes) => {
       // Refetch: this is what surfaces the new Activity line, and what lets the
       // client see "AI Job Started" -- which is what turns on the polling and
       // the Generating badge. Without it nothing appears until a manual reload.
       queryClient.invalidateQueries({ queryKey: ["/api/sermons", params.id] });
       toast({
-        title: "Prepare started",
-        description:
-          "Claude is drafting the descriptions and moments from the transcript. This page updates itself as they land.",
+        title: forceQuotes ? "Regenerating moments" : "Prepare started",
+        description: forceQuotes
+          ? "Re-picking moments from the transcript. Anything you have already reviewed stays put; only untouched ones are replaced."
+          : "Claude is drafting the descriptions and moments from the transcript. This page updates itself as they land.",
       });
     },
     onError: (error: Error) =>
@@ -920,16 +921,39 @@ export default function SermonDetail() {
             variant="outline"
             className="gap-1.5 h-7 text-xs"
             disabled={prepareMutation.isPending}
-            onClick={() => prepareMutation.mutate()}
+            onClick={() => prepareMutation.mutate(false)}
             data-testid="button-prepare-sermon"
             title="Draft descriptions + moments from the transcript with AI"
           >
             <Wand2 className="w-3 h-3" />
             {prepareMutation.isPending ? "Starting..." : "Prepare with AI"}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-7 text-xs"
+            disabled={prepareMutation.isPending}
+            onClick={() => prepareMutation.mutate(true)}
+            data-testid="button-regenerate-moments"
+            title="Re-pick moments from the transcript. Moments you have reviewed are kept; only untouched ones are replaced."
+          >
+            <Wand2 className="w-3 h-3" />
+            Re-pick moments
+          </Button>
         </div>
       </div>
       <div className="space-y-3 mb-4">
+        {/* Steering note sits ABOVE the drafts: you aim the AI, then regenerate. */}
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Direction for AI</Label>
+          <ExpandTextarea
+            value={fields["AI Direction"] || ""}
+            onChange={(e) => handleFieldChange("AI Direction", e.target.value)}
+            placeholder="Optional. What to emphasise or make sure gets picked up, e.g. 'the part about believing God and an architecture imprinted on our minds'. Steers what the AI leads with and which moments it chooses. It never changes how moments are quoted."
+            collapsedHeight="h-[60px]" className={`text-xs bg-background${fieldRing("optional", fields["AI Direction"])}`}
+            data-testid="input-ai-direction"
+          />
+        </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <Label className="text-xs text-muted-foreground">AI Short Description</Label>

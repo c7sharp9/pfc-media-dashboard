@@ -524,6 +524,18 @@ export default function EditDetailPage() {
         <div className="space-y-3">
           <SectionCard title="Website">
             <div className="grid grid-cols-1 gap-2.5">
+              {/* Steering note sits above the drafts: aim it, then re-prepare. */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Direction for AI</Label>
+                <ExpandTextarea
+                  value={fields["AI Direction"] || ""}
+                  onChange={(e) => set("AI Direction", e.target.value)}
+                  placeholder="Optional. What the descriptions should lead with or make sure to cover. Applied next time Prepare runs."
+                  collapsedHeight="h-[52px]"
+                  className={`text-xs bg-background${fieldRing("optional", fields["AI Direction"])}`}
+                  data-testid="input-ai-direction"
+                />
+              </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">AI Short Website Description</Label>
