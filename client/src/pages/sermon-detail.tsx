@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,6 +27,8 @@ import {
   Share2,
   Wand2,
   Quote,
+  Info,
+  ChevronDown,
 } from "lucide-react";
 import { SiFacebook } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -106,7 +108,7 @@ function timecodeSeconds(tc: string): number {
 // Check the ones to publish, tweak the Final text (Original is never touched),
 // then Send Moments to Website -- re-sending REPLACES the live set, so the same
 // button is also the update button.
-function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDate?: string }) {
+function WebsiteQuotes({ sermonId, serviceDate, polling }: { sermonId: string; serviceDate?: string; polling?: boolean }) {
   const { toast } = useToast();
   const date = (serviceDate || "").slice(0, 10);
   const { data } = useQuery<{ records: QuoteRecord[] }>({
@@ -116,11 +118,20 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
       return res.json();
     },
     enabled: !!date,
+    // While an AI job is recent, keep refetching so a re-pick's new moments
+    // appear on their own (the sermon poller can't see this table).
+    refetchInterval: polling ? 15000 : false,
   });
   const quotes = (data?.records || [])
     .slice()
     .sort((a, b) => timecodeSeconds(a.fields["Video Timecode"] || "") - timecodeSeconds(b.fields["Video Timecode"] || ""));
   const checkedCount = quotes.filter((q) => q.fields["On Website"]).length;
+  // A send stamps Reviewed on every quote for the date, so: not Reviewed =
+  // arrived since the last send (label it New); Reviewed but unchecked = a
+  // deliberate reject (park it out of the way, recoverable).
+  const rejected = quotes.filter((q) => (q.fields as any)["Reviewed"] && !q.fields["On Website"]);
+  const current = quotes.filter((q) => !((q.fields as any)["Reviewed"] && !q.fields["On Website"]));
+  const [showRejected, setShowRejected] = useState(false);
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -164,40 +175,7 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
 
   if (!date) return null;
 
-  return (
-    <div className="mt-4">
-      <Separator className="my-3" />
-      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-          <Quote className="w-3.5 h-3.5" /> Moments
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground">
-            {checkedCount} of {quotes.length} selected
-          </span>
-          <Button
-            size="sm"
-            className="gap-1.5 h-7 text-xs"
-            disabled={quotes.length === 0 || sendQuotesMutation.isPending}
-            onClick={() => sendQuotesMutation.mutate()}
-            data-testid="button-send-quotes"
-          >
-            <Globe className="w-3 h-3" />
-            {sendQuotesMutation.isPending
-              ? "Sending..."
-              : quotes.some((q) => (q.fields as any)["Reviewed"])
-                ? "Re-send Moments to Website"
-                : "Send Moments to Website"}
-          </Button>
-        </div>
-      </div>
-      {quotes.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No moments for this service date yet. Claude extracts them from the transcript; they land here for review.
-        </p>
-      ) : (
-        <div className="space-y-1.5">
-          {quotes.map((q) => {
+  const renderQuote = (q: QuoteRecord) => {
             const original = q.fields["Quote Original"] || "";
             const finalText = drafts[q.id] ?? (q.fields["Quote Final"] || "");
             const published = finalText.trim() || original;
@@ -231,6 +209,9 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
                   </div>
                   <div className="text-right shrink-0 space-y-1">
                     <p className="text-[10px] font-mono text-muted-foreground">{q.fields["Video Timecode"] || "--:--"}</p>
+                    {!(q.fields as any)["Reviewed"] && (
+                      <Badge className="text-[9px] px-1 py-0 block" data-testid="badge-new-moment">New</Badge>
+                    )}
                     <Badge variant="outline" className="text-[9px] px-1 py-0">
                       {q.fields["Source"] === "Claude" ? "AI" : "Manual"}
                     </Badge>
@@ -241,7 +222,56 @@ function WebsiteQuotes({ sermonId, serviceDate }: { sermonId: string; serviceDat
                 </div>
               </Card>
             );
-          })}
+  };
+
+  return (
+    <div className="mt-4">
+      <Separator className="my-3" />
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+          <Quote className="w-3.5 h-3.5" /> Moments
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {checkedCount} of {quotes.length} selected
+          </span>
+          <Button
+            size="sm"
+            className="gap-1.5 h-7 text-xs"
+            disabled={quotes.length === 0 || sendQuotesMutation.isPending}
+            onClick={() => sendQuotesMutation.mutate()}
+            data-testid="button-send-quotes"
+          >
+            <Globe className="w-3 h-3" />
+            {sendQuotesMutation.isPending
+              ? "Sending..."
+              : quotes.some((q) => (q.fields as any)["Reviewed"])
+                ? "Re-send Moments to Website"
+                : "Send Moments to Website"}
+          </Button>
+        </div>
+      </div>
+      {quotes.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No moments for this service date yet. Claude extracts them from the transcript; they land here for review.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {current.map(renderQuote)}
+          {rejected.length > 0 && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowRejected((v) => !v)}
+                className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                data-testid="button-toggle-rejected"
+              >
+                <ChevronDown className={`w-3 h-3 transition-transform ${showRejected ? "" : "-rotate-90"}`} />
+                Rejected ({rejected.length}) — kept off the site; re-check one to bring it back
+              </button>
+              {showRejected && <div className="space-y-1.5 mt-1.5">{rejected.map(renderQuote)}</div>}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -266,6 +296,16 @@ export default function SermonDetail() {
   const [fields, setFields] = useState<Record<string, any>>({});
   const [title, setTitle] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
+  // Autosave: edits persist on their own (checkboxes at once, text after a
+  // pause) -- an approval should never be lost to a Save button nobody
+  // scrolled back up to. dirtyRef counts edits so a save that lands while MORE
+  // typing happened doesn't clear the flag for edits it never carried.
+  const dirtyRef = useRef(0);
+  const savedDirtyRef = useRef(0);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveRef = useRef<() => void>(() => {});
+  const hasChangesRef = useRef(false);
+  useEffect(() => { hasChangesRef.current = hasChanges; }, [hasChanges]);
 
   // While an AI job is in flight the record is refetched on a timer, so the
   // descriptions and moments appear on their own without a manual refresh.
@@ -331,7 +371,9 @@ export default function SermonDetail() {
   );
 
   useEffect(() => {
-    if (sermon) {
+    // Never clobber in-flight edits: with autosave plus the 15s AI polling, a
+    // refetch can land mid-typing.
+    if (sermon && !hasChangesRef.current) {
       setFields(sermon.fields);
       setTitle(sermon.fields["Title"] || "");
     }
@@ -345,8 +387,10 @@ export default function SermonDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sermons", params.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/sermons"] });
-      setHasChanges(false);
-      toast({ title: "Saved", description: "Sermon updated successfully." });
+      // Clear the dirty flag only if nothing was typed while the save flew;
+      // otherwise go around again for the edits this save didn't carry.
+      if (savedDirtyRef.current === dirtyRef.current) setHasChanges(false);
+      else saveRef.current();
     },
     onError: (error: Error) => {
       toast({
@@ -426,14 +470,22 @@ export default function SermonDetail() {
       toast({ title: "Descript failed", description: error.message, variant: "destructive" }),
   });
 
+  const scheduleSave = (delay: number) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => saveRef.current(), delay);
+  };
+
   const handleFieldChange = (fieldName: string, value: any) => {
     setFields((prev) => ({ ...prev, [fieldName]: value }));
     setHasChanges(true);
+    dirtyRef.current++;
+    scheduleSave(typeof value === "boolean" ? 0 : 900);
   };
 
   const handleSave = () => {
     // Build the diff of changed fields
     if (!sermon) return;
+    if (updateMutation.isPending) { scheduleSave(500); return; }
     const changed: Record<string, any> = {};
     for (const [key, val] of Object.entries(fields)) {
       if (JSON.stringify(val) !== JSON.stringify(sermon.fields[key as keyof typeof sermon.fields])) {
@@ -443,10 +495,14 @@ export default function SermonDetail() {
     if (title !== (sermon.fields["Title"] || "")) {
       changed["Title"] = title;
     }
+    savedDirtyRef.current = dirtyRef.current;
     if (Object.keys(changed).length > 0) {
       updateMutation.mutate(changed);
+    } else {
+      setHasChanges(false);
     }
   };
+  saveRef.current = handleSave;
 
   if (isLoading) {
     return (
@@ -515,6 +571,8 @@ export default function SermonDetail() {
             onChange={(e) => {
               setTitle(e.target.value);
               setHasChanges(true);
+              dirtyRef.current++;
+              scheduleSave(900);
             }}
             placeholder="Enter sermon title..."
             className={`text-base font-semibold bg-transparent outline-none w-full text-foreground placeholder:text-muted-foreground/50 ${
@@ -524,17 +582,14 @@ export default function SermonDetail() {
           />
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {hasChanges && (
-            <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              size="sm"
-              className="gap-1 h-7 text-xs"
-              data-testid="button-save"
+          {(hasChanges || updateMutation.isPending) && (
+            <span
+              className="text-[10px] text-muted-foreground inline-flex items-center gap-1.5"
+              data-testid="status-saving"
             >
-              <Save className="w-3 h-3" />
-              {updateMutation.isPending ? "Saving..." : "Save"}
-            </Button>
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Saving...
+            </span>
           )}
           <Button
             variant="ghost"
@@ -710,7 +765,7 @@ export default function SermonDetail() {
                       : "Send Sermon to Website"}
                 </Button>
                 {hasChanges && (
-                  <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+                  <p className="text-[10px] text-muted-foreground/70">Saving your changes...</p>
                 )}
                 {!hasChanges && sendMissing.length > 0 && (
                   <p className="text-[10px] text-red-400/80">Needs: {sendMissing.join(", ")}</p>
@@ -865,7 +920,7 @@ export default function SermonDetail() {
                       : "Send Sermon to Website"}
                 </Button>
                 {hasChanges && (
-                  <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+                  <p className="text-[10px] text-muted-foreground/70">Saving your changes...</p>
                 )}
                 {!hasChanges && sendMissing.length > 0 && (
                   <p className="text-[10px] text-red-400/80">Needs: {sendMissing.join(", ")}</p>
@@ -892,9 +947,12 @@ export default function SermonDetail() {
 
       {/* Right column — Additional Info & Edits */}
       <div>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Additional Info
+      {/* The AI workspace: generation controls + the drafts they fill, on a
+          tinted ground so it reads as one thing amid a full page. */}
+      <div className="rounded-lg border border-primary/25 bg-primary/[0.05] p-3 mb-4">
+      <div className="flex items-center justify-between mb-2.5 gap-2 flex-wrap">
+        <h2 className="text-xs font-semibold text-primary/90 uppercase tracking-wide flex items-center gap-1.5">
+          <Wand2 className="w-3.5 h-3.5" /> AI Content
         </h2>
         <div className="flex items-center gap-2">
           {aiRunning && !aiStalled && (
@@ -942,10 +1000,15 @@ export default function SermonDetail() {
           </Button>
         </div>
       </div>
-      <div className="space-y-3 mb-4">
+      <div className="space-y-3">
         {/* Steering note sits ABOVE the drafts: you aim the AI, then regenerate. */}
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Direction for AI</Label>
+          <Label className="text-xs text-muted-foreground inline-flex items-center gap-1">
+            Direction for AI
+            <span title="Optional. Steers what the descriptions lead with and which moments get picked. Never changes how moments are quoted.">
+              <Info className="w-3 h-3 text-muted-foreground/60" />
+            </span>
+          </Label>
           <ExpandTextarea
             value={fields["AI Direction"] || ""}
             onChange={(e) => handleFieldChange("AI Direction", e.target.value)}
@@ -953,9 +1016,6 @@ export default function SermonDetail() {
             collapsedHeight="h-[60px]" className={`text-xs bg-background${fieldRing("optional", fields["AI Direction"])}`}
             data-testid="input-ai-direction"
           />
-          <p className="text-[10px] text-muted-foreground/70">
-            Optional. Steers what the descriptions lead with and which moments get picked. Never changes how moments are quoted.
-          </p>
         </div>
         <div className="space-y-1">
           <div className="flex items-center justify-between">
@@ -1027,7 +1087,7 @@ export default function SermonDetail() {
             {sendMutation.isPending ? "Sending..." : "Send Descriptions to Website"}
           </Button>
           {hasChanges ? (
-            <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+            <p className="text-[10px] text-muted-foreground/70">Saving your changes...</p>
           ) : !hasDescription ? (
             <p className="text-[10px] text-muted-foreground/70">
               Nothing to send yet. Add a description above, or use Prepare with AI.
@@ -1038,6 +1098,10 @@ export default function SermonDetail() {
             </p>
           ) : null}
         </div>
+      </div>
+      </div>
+      {/* everything below is plain record-keeping, outside the AI workspace */}
+      <div className="space-y-3 mb-4">
         {fields["AI Service Transcript"] && (
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">
@@ -1208,23 +1272,14 @@ export default function SermonDetail() {
       </div>
       </div>{/* close grid */}
 
-      <WebsiteQuotes sermonId={params.id!} serviceDate={fields["Service"]} />
+      <WebsiteQuotes
+        sermonId={params.id!}
+        serviceDate={fields["Service"]}
+        polling={!!aiStartedAt && !isNaN(aiStartedAt.getTime()) && Date.now() - aiStartedAt.getTime() < 12 * 60000}
+      />
       <ActivityLog value={fields["Activity"]} />
 
-      {/* Save floating button on mobile */}
-      {hasChanges && (
-        <div className="md:hidden fixed bottom-16 left-0 right-0 p-2 bg-background/80 backdrop-blur border-t border-border">
-          <Button
-            onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className="w-full gap-1 h-9 text-sm"
-            data-testid="button-save-mobile"
-          >
-            <Save className="w-3.5 h-3.5" />
-            {updateMutation.isPending ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
-      )}
+
     </div>
   );
 }

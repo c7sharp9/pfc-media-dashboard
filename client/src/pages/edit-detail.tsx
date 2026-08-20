@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -233,9 +233,18 @@ export default function EditDetailPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [transcriptUrl, setTranscriptUrl] = useState("");
   const [transcriptDirty, setTranscriptDirty] = useState(false);
+  // Autosave (same scheme as the sermon page): checkboxes commit at once,
+  // text after a pause; dirtyRef keeps a late save from clearing newer edits.
+  const dirtyRef = useRef(0);
+  const savedDirtyRef = useRef(0);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveRef = useRef<() => void>(() => {});
+  const hasChangesRef = useRef(false);
+  useEffect(() => { hasChangesRef.current = hasChanges || transcriptDirty; }, [hasChanges, transcriptDirty]);
 
   useEffect(() => {
-    if (edit) setFields(edit.fields);
+    // Never clobber in-flight edits with a refetch.
+    if (edit && !hasChangesRef.current) setFields(edit.fields);
   }, [edit]);
 
   // Resolve the linked sermon: prefer the real Sermon Link record ID,
@@ -283,9 +292,12 @@ export default function EditDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/edits"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sermons"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sermons/search"] });
-      setHasChanges(false);
-      setTranscriptDirty(false);
-      toast({ title: "Saved", description: "Edit updated." });
+      if (savedDirtyRef.current === dirtyRef.current) {
+        setHasChanges(false);
+        setTranscriptDirty(false);
+      } else {
+        saveRef.current();
+      }
     },
     onError: (err: Error) =>
       toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -333,13 +345,22 @@ export default function EditDetailPage() {
       toast({ title: "Publish failed", description: err.message, variant: "destructive" }),
   });
 
+  const scheduleSave = (delay: number) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => saveRef.current(), delay);
+  };
+
   const set = (field: string, value: any) => {
     setFields((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
+    dirtyRef.current++;
+    scheduleSave(typeof value === "boolean" ? 0 : 900);
   };
 
   const handleSave = () => {
     if (!edit) return;
+    if (updateMutation.isPending) { scheduleSave(500); return; }
+    savedDirtyRef.current = dirtyRef.current;
     const changed: Record<string, any> = {};
     for (const [key, val] of Object.entries(fields)) {
       if (JSON.stringify(val) !== JSON.stringify(edit.fields[key as keyof typeof edit.fields])) {
@@ -348,6 +369,7 @@ export default function EditDetailPage() {
     }
     updateMutation.mutate({ changed, transcript: transcriptDirty ? transcriptUrl : undefined });
   };
+  saveRef.current = handleSave;
 
   const showSave = hasChanges || (transcriptDirty && !!linkedSermon);
   const isRecap = (fields["Type"] || []).includes("Recap");
@@ -399,11 +421,11 @@ export default function EditDetailPage() {
             )}
           </div>
         </div>
-        {showSave && (
-          <Button onClick={handleSave} disabled={updateMutation.isPending} size="sm" className="gap-1 text-xs h-8">
-            <Save className="w-3.5 h-3.5" />
-            {updateMutation.isPending ? "Saving..." : "Save"}
-          </Button>
+        {(showSave || updateMutation.isPending) && (
+          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1.5" data-testid="status-saving">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Saving...
+          </span>
         )}
       </div>
 
@@ -508,6 +530,8 @@ export default function EditDetailPage() {
               onChange={(v) => {
                 setTranscriptUrl(v);
                 setTranscriptDirty(true);
+                dirtyRef.current++;
+                scheduleSave(900);
               }}
             />
             <UrlRow
@@ -633,7 +657,7 @@ export default function EditDetailPage() {
                   )}
                 </div>
                 {hasChanges && (
-                  <p className="text-[10px] text-muted-foreground/70">Save your changes first.</p>
+                  <p className="text-[10px] text-muted-foreground/70">Saving your changes...</p>
                 )}
                 {!hasChanges && !fields["Video URL"] && (
                   <p className="text-[10px] text-red-400/80">Needs a Video URL.</p>
