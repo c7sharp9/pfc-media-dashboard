@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,7 @@ export function UrlField({
   placeholder,
   required,
   level,
+  hint,
 }: {
   label: string;
   value: string;
@@ -78,13 +79,22 @@ export function UrlField({
   onChange: (field: string, value: string) => void;
   placeholder?: string;
   required?: boolean;
+  // Shown behind a small info icon next to the label (hover for the text).
+  hint?: string;
   // Overrides `required`: "wanted" = yellow (nice-to-have, not blocking).
   level?: "required" | "wanted" | "optional";
 }) {
   const ring = level ? fieldRing(level, value) : requiredClass(required, value);
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-muted-foreground inline-flex items-center gap-1">
+        {label}
+        {hint && (
+          <span title={hint} data-testid={`hint-${fieldName.replace(/\s+/g, "-").toLowerCase()}`}>
+            <Info className="w-3 h-3 text-muted-foreground/60" />
+          </span>
+        )}
+      </Label>
       <div className="flex gap-2">
         <Input
           type="url"

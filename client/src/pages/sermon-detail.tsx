@@ -987,29 +987,19 @@ export default function SermonDetail() {
             onChange={handleFieldChange}
             placeholder="filled in by Generate Transcript + Descriptions"
             level="wanted"
+            hint="Add the Audio URL (Google Drive link) in the workflow first. Generate Transcript + Descriptions sends that audio to Descript for the transcript, then drafts the descriptions and moment quotes from it (about 10 minutes). Everything in this box comes from that transcript, so if this field is empty, nothing can be drafted yet."
           />
-          {hasAudio ? (
-            <>
-              <Button
-                size="sm"
-                className="gap-1.5 h-7 text-xs w-full"
-                disabled={descriptMutation.isPending}
-                onClick={() => descriptMutation.mutate()}
-                data-testid="button-descript"
-                title="Send the audio to Descript, then draft descriptions + moments"
-              >
-                <Wand2 className="w-3 h-3" />
-                {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
-              </Button>
-              <p className="text-[10px] text-muted-foreground/70">
-                Sends the Drive audio to Descript for the transcript, then drafts descriptions and moment quotes. ~10 min.
-              </p>
-            </>
-          ) : (
-            <p className="text-[10px] text-amber-400/90" data-testid="text-needs-audio">
-              Add the Audio URL (Google Drive link) in the workflow first. The audio goes to Descript for the transcript, and everything below is drafted from it.
-            </p>
-          )}
+          <Button
+            size="sm"
+            className="gap-1.5 h-7 text-xs w-full"
+            disabled={descriptMutation.isPending || !hasAudio}
+            onClick={() => descriptMutation.mutate()}
+            data-testid="button-descript"
+            title={hasAudio ? "Send the audio to Descript, then draft descriptions + moments" : "Add the Audio URL in the workflow first"}
+          >
+            <Wand2 className="w-3 h-3" />
+            {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
+          </Button>
         </div>
         {/* Steering note sits ABOVE the drafts: you aim the AI, then regenerate. */}
         <div className="space-y-1">
