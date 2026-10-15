@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { mediaProgress, aiProgress } from "@/lib/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,49 +24,6 @@ interface SermonsPage {
   nextCursor: string | null;
 }
 
-function computeProgress(sermon: Sermon): number {
-  const f = sermon.fields;
-  const platform = f["Platform"];
-
-  // The three website pieces publish independently (sermon / descriptions /
-  // moments), so each counts toward completion on its own. "Website Done" is
-  // still the human "Verified Live" check on top of them.
-  const published = [
-    !!f["Sermon URL"],          // Send Sermon to Website
-    !!f["Descriptions Sent"],   // Send Descriptions to Website
-    !!f["Moments Sent"],        // Send Moments to Website
-    !!f["Website Done"],        // Verified Live
-  ];
-
-  if (platform === "Sunday") {
-    // 10 steps: Full Service, Trimmed Service, Transcription, YouTube,
-    // YouTube Hide, Facebook + the four website steps.
-    const steps = [
-      !!f["Video URL"],
-      !!(f["Trimmed Video URL"] && f["Audio URL"]),
-      !!f["Transcription URL"],
-      !!f["YouTube Trimmed URL"],
-      !!f["YouTube Hidden"],
-      !!f["Facebook Done"],
-      ...published,
-    ];
-    return Math.round((steps.filter(Boolean).length / steps.length) * 100);
-  } else if (platform === "Wednesday") {
-    // 9 steps: Clean Edit, Audio, Transcription, Trim Live Streams,
-    // YouTube Link + the four website steps.
-    const steps = [
-      !!f["Video URL"],
-      !!f["Audio URL"],
-      !!f["Transcription URL"],
-      !!(f["Facebook Done"] && f["Wednesday YouTube Trimmed"]),
-      !!f["Wednesday YouTube Link"],
-      ...published,
-    ];
-    return Math.round((steps.filter(Boolean).length / steps.length) * 100);
-  }
-  return 0;
-}
-
 function formatDate(dateStr: string) {
   if (!dateStr) return "";
   const d = new Date(dateStr + "T12:00:00");
@@ -78,7 +36,8 @@ function formatDate(dateStr: string) {
 }
 
 function SermonRow({ sermon }: { sermon: Sermon }) {
-  const progress = computeProgress(sermon);
+  const media = mediaProgress(sermon);
+  const ai = aiProgress(sermon);
   const platform = sermon.fields["Platform"] || "Unknown";
   const isSunday = platform === "Sunday";
 
@@ -111,14 +70,21 @@ function SermonRow({ sermon }: { sermon: Sermon }) {
             {sermon.fields["Title"] || "(No title)"}
           </p>
         </div>
-        <div className="w-24 sm:w-32 shrink-0">
-          <div className="flex items-center justify-between mb-0.5">
-            <span className="text-xs text-muted-foreground">{progress}%</span>
+        <div className="w-24 sm:w-32 shrink-0 space-y-1" title="Green: media steps. Yellow: AI content steps.">
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-[10px] text-emerald-500">Media</span>
+              <span className="text-[10px] text-muted-foreground tabular-nums">{media}%</span>
+            </div>
+            <Progress value={media} className="h-1 [&>div]:bg-emerald-500" />
           </div>
-          <Progress
-            value={progress}
-            className="h-1"
-          />
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-[10px] text-primary">AI content</span>
+              <span className="text-[10px] text-muted-foreground tabular-nums">{ai}%</span>
+            </div>
+            <Progress value={ai} className="h-1 [&>div]:bg-primary" />
+          </div>
         </div>
         <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
       </div>

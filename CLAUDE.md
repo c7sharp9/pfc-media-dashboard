@@ -186,10 +186,18 @@ moment-quote pass off that transcript. ~4-10 min; gate is audio (422 without it)
 Re-run with `force` to re-transcribe -- that also regenerates the quotes, and
 `--force-quotes` REPLACES the previous Claude set rather than stacking a second
 one on top of it.
-**Drive write-back is manual**: a consumer Gmail Drive can't be written by a
-service account, so the team copies the transcript into Drive and ticks the
-**"Added to Google Drive?"** checkbox (`Added to Drive`) next to the transcript
-URL. Full pipeline notes live in the pfc-website CLAUDE.md.
+**2026-10-15 layout:** the transcript lives in the **AI Content** box (right
+column), not the workflow column: a `Transcription URL` field + the yellow
+**Generate Transcript + Descriptions** button when the record has audio, or a
+"add the Audio URL first" note when it doesn't. **Prepare with AI** and
+**Re-pick moments** are disabled until a transcript exists (server also 422s).
+The Whisper fallback is gone: Descript is the only transcript source. The
+"Added to Google Drive?" checkbox and the Descriptions Approved checkbox were
+removed (fields still exist in Airtable, unused). **Two progress bars**
+(`client/src/lib/progress.ts`): green MEDIA (files, YouTube, Facebook, Send
+Sermon, Verified Live) for the editor, yellow AI CONTENT (transcript,
+Descriptions Sent, Moments Sent) for Jonathan; shown on the list rows and the
+sermon header. Full pipeline notes live in the pfc-website CLAUDE.md.
 
 ## Descriptions review (/descriptions)
 
@@ -198,9 +206,9 @@ collapsible card per sermon (all 390, newest first, via `GET /api/sermons/all`
 -- lean field set), each showing the SHORT (125 counter) + LONG description.
 Editing writes to the **Manual** field (manual wins at publish), so a re-Prepare
 never clobbers a revision; the AI draft shows underneath with one-click revert.
-`Descriptions Reviewed` (checkbox field) drives a Needs-review/Reviewed badge
-and the "Needs review" tab; a successful **Send to Website** (or the inline
-checkbox) marks it reviewed. A **Missing** tab surfaces IN-SCOPE sermons with no short description yet
+Cards carry a Sent / Not sent badge off `Descriptions Sent` (the
+`Descriptions Reviewed` checkbox and its Needs-approval tab were retired
+2026-10-15). A **Missing** tab surfaces IN-SCOPE sermons with no short description yet
 (need Prepare). **`Skip Website`** (checkbox) marks out-of-scope messages --
 no descriptions needed, not sent to the site; they drop out of All/Needs
 review/Missing and live under a **Skipped** tab (un-skip via the footer

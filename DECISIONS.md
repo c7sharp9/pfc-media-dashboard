@@ -87,3 +87,9 @@ Each decision follows: **Context** (why), **Decision** (what), **Consequences** 
 - **Context:** Hard to tell at a glance what a record still needs.
 - **Decision:** One `fieldRing()` helper: green = filled, grey = fine empty, yellow = wanted (not required), red = required-and-missing. Generated fields labeled "AI …" to pair with "Manual …".
 - **Consequences:** A finished record reads as a wall of green; the page fills in as work gets done.
+
+## 2026-10-15 — Descript is the only transcript source; two owners, two progress bars
+
+- **Context:** Jonathan rediscovered that "Generate Transcript + Descriptions" already uploads the Drive audio to Descript. The Whisper fallback (no speaker labels) let a sermon skip that, and the single progress bar mixed the editor's media steps with Jonathan's content steps.
+- **Decision:** Retire Whisper (dashboard gates Prepare on a transcript, pfc-website script exits asking for audio in Drive). Move the transcript into the AI Content box with the Generate button in the primary yellow. Split progress into MEDIA (green; Mark: files, YouTube, Facebook, Send Sermon, Verified Live) and AI CONTENT (yellow; Jonathan: transcript, Descriptions Sent, Moments Sent). Drop the Descriptions Approved and Added-to-Drive checkboxes; the transcript link itself is the signal (empty = investigate).
+- **Consequences:** No Airtable changes; the two checkbox fields are simply unused. The Descriptions page shows Sent / Not sent instead of approval state.

@@ -152,8 +152,6 @@ export default function DescriptionsReviewPage() {
       return { id, ...body };
     },
     onSuccess: (result: { id: string; status: string }) => {
-      // Publishing counts as reviewed, same as the quotes flow.
-      patch(result.id, { "Descriptions Reviewed": true });
       setDirtyIds((prev) => { const n = new Set(prev); n.delete(result.id); return n; });
       toast({
         title: result.status === "unchanged" ? "Already up to date" : "Sent to website",
@@ -195,10 +193,7 @@ export default function DescriptionsReviewPage() {
       } else if (skip) {
         return false; // out of scope: hidden from All / Needs review / Missing
       }
-      const reviewed = !!s.fields["Descriptions Reviewed"];
       const hasShort = !!eff(s, "Short").trim();
-      if (tab === "unreviewed" && reviewed) return false;
-      if (tab === "reviewed" && !reviewed) return false;
       if (tab === "missing" && hasShort) return false;
       if (needle) {
         const hay = `${s.fields["Title"] || ""} ${s.fields["Service"] || ""} ${eff(s, "Short")} ${eff(s, "Long")}`.toLowerCase();
@@ -208,11 +203,11 @@ export default function DescriptionsReviewPage() {
     });
   }, [data, tab, needle]);
 
-  // Accordion: open the first in-scope unreviewed card on load.
+  // Accordion: open the first in-scope card whose copy hasn't gone out yet.
   useEffect(() => {
     if (defaultsSet || !data) return;
     const first = (data.records || []).find(
-      (s) => !s.fields["Descriptions Reviewed"] && !s.fields["Skip Website"]
+      (s) => !s.fields["Descriptions Sent"] && !s.fields["Skip Website"]
     );
     setOpenId(first ? first.id : null);
     setDefaultsSet(true);
@@ -234,8 +229,6 @@ export default function DescriptionsReviewPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="bg-muted/50">
             <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-            <TabsTrigger value="unreviewed" className="text-xs">Needs approval</TabsTrigger>
-            <TabsTrigger value="reviewed" className="text-xs">Approved</TabsTrigger>
             <TabsTrigger value="missing" className="text-xs">Missing</TabsTrigger>
             <TabsTrigger value="skipped" className="text-xs">Skipped</TabsTrigger>
           </TabsList>
@@ -260,9 +253,7 @@ export default function DescriptionsReviewPage() {
         </div>
       ) : filtered.length === 0 ? (
         <p className="p-8 text-center text-sm text-muted-foreground">
-          {tab === "unreviewed"
-            ? "Nothing awaiting approval. All caught up."
-            : tab === "missing"
+          {tab === "missing"
               ? "Every in-scope sermon has a short description."
               : tab === "skipped"
                 ? "Nothing skipped."
@@ -271,7 +262,7 @@ export default function DescriptionsReviewPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map((s) => {
-            const reviewed = !!s.fields["Descriptions Reviewed"];
+            const sent = !!s.fields["Descriptions Sent"];
             const isOpen = openId === s.id;
             const date = (s.fields["Service"] || "").slice(0, 10);
             const published = !!s.fields["Sermon URL"];
@@ -295,13 +286,13 @@ export default function DescriptionsReviewPage() {
                       <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" /> Unpublished
                     </Badge>
                   )}
-                  {reviewed ? (
+                  {sent ? (
                     <Badge className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-500 border-emerald-500/30" variant="outline">
-                      Approved
+                      Sent
                     </Badge>
                   ) : (
                     <Badge className="text-[9px] px-1.5 py-0 bg-amber-500/15 text-amber-500 border-amber-500/30" variant="outline">
-                      Needs approval
+                      Not sent
                     </Badge>
                   )}
                 </button>
@@ -332,15 +323,6 @@ export default function DescriptionsReviewPage() {
                         >
                           Open sermon <ChevronRight className="w-3 h-3" />
                         </Link>
-                        <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground">
-                          <input
-                            type="checkbox"
-                            className="h-3.5 w-3.5 accent-primary cursor-pointer"
-                            checked={reviewed}
-                            onChange={(e) => patch(s.id, { "Descriptions Reviewed": e.target.checked })}
-                          />
-                          Approved
-                        </label>
                         <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground" title="Out of scope for the new website (no descriptions, not sent)">
                           <input
                             type="checkbox"

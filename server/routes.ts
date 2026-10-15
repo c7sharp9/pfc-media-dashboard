@@ -373,7 +373,7 @@ export async function registerRoutes(
   app.get("/api/sermons/all", async (req, res) => {
     try {
       if (useSampleData) return res.json({ records: SAMPLE_SERMONS });
-      const records = await fetchAllRecords(SERMON_TABLE, "sort%5B0%5D%5Bfield%5D=Service&sort%5B0%5D%5Bdirection%5D=desc&fields%5B%5D=Title&fields%5B%5D=Service&fields%5B%5D=Platform&fields%5B%5D=Short%20Description&fields%5B%5D=Manual%20Short%20Description&fields%5B%5D=Long%20Description&fields%5B%5D=Manual%20Long%20Description&fields%5B%5D=Descriptions%20Reviewed&fields%5B%5D=Sermon%20URL&fields%5B%5D=Skip%20Website");
+      const records = await fetchAllRecords(SERMON_TABLE, "sort%5B0%5D%5Bfield%5D=Service&sort%5B0%5D%5Bdirection%5D=desc&fields%5B%5D=Title&fields%5B%5D=Service&fields%5B%5D=Platform&fields%5B%5D=Short%20Description&fields%5B%5D=Manual%20Short%20Description&fields%5B%5D=Long%20Description&fields%5B%5D=Manual%20Long%20Description&fields%5B%5D=Descriptions%20Sent&fields%5B%5D=Sermon%20URL&fields%5B%5D=Skip%20Website");
       res.json({ records });
     } catch (err: any) {
       console.error("Error fetching all sermons:", err.message);
@@ -762,15 +762,14 @@ export async function registerRoutes(
     try {
       const token = process.env.GITHUB_TOKEN || "";
       if (!token) return res.status(503).json({ error: "GITHUB_TOKEN is not configured on the server." });
-      // Prepare runs in CI, where YouTube captions can't be fetched (datacenter
-      // IP block). So it needs the Descript transcript to already be in Airtable.
+      // Prepare drafts from the Descript transcript only (the Whisper fallback
+      // is retired: no speaker labels, and it skipped the Descript step).
       if (!useSampleData) {
         const rec = await airtableFetch(`https://api.airtable.com/v0/${BASE_ID}/${SERMON_TABLE}/${req.params.id}`);
         const hasTranscript = (rec?.fields?.["Transcription URL"] || "").trim();
-        const hasAudio = (rec?.fields?.["Audio URL"] || rec?.fields?.["Trimmed Audio"] || "").trim();
-        if (!hasTranscript && !hasAudio) {
+        if (!hasTranscript) {
           return res.status(422).json({
-            error: "No transcript or audio yet. Prepare needs either the Descript transcription or an Audio file (it'll transcribe the audio with Whisper). Add one and re-run.",
+            error: "No transcript yet. Add the audio to Google Drive, then run Generate Transcript + Descriptions (the audio goes to Descript for the transcript).",
           });
         }
       }

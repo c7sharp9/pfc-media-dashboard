@@ -6,8 +6,8 @@ Dashboard tracks sermons, edits, and workflow steps via Airtable; deployed on Ne
 Full content pipeline is live: **Prepare with AI** drafts short+long descriptions and
 near-verbatim moment quotes (15 service / 10 podcast) from the transcript into Airtable;
 two review workspaces (**Website Quotes**, **Descriptions**) run the review → revise → send
-loop. Transcripts come from Descript, else **OpenAI Whisper** on the Drive audio (works in
-CI, same-day). Both website bridges are live: sermon Send-to-Website (direct commit) and
+loop. Transcripts come from Descript only (the Whisper fallback was retired 2026-10-15; the
+audio goes to Drive, the dashboard sends it to Descript). Both website bridges are live: sermon Send-to-Website (direct commit) and
 recap two-stage Prepare → Send (GitHub Action). `Skip Website` keeps the ~311 out-of-scope
 messages out of the way (only 2026 + recap-linked sermons are on the new site).
 

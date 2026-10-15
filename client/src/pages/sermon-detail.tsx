@@ -35,6 +35,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatLongDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { UrlField, CheckboxField, OpenLinkButton, fieldRing } from "@/components/fields";
+import { Progress } from "@/components/ui/progress";
+import { mediaProgress, aiProgress } from "@/lib/progress";
 import { PlatformBadge, StatusBadge, TypeBadge } from "@/components/badges";
 import NewEditDialog from "@/components/new-edit-dialog";
 import ActivityLog from "@/components/activity-log";
@@ -577,6 +579,10 @@ export default function SermonDetail() {
     (fields["Manual Long Description"] || fields["Long Description"] || "").trim()
   );
   const sermonIsLive = !!fields["Sermon URL"];
+  // The Descript transcript (made from the Drive audio) is the source for
+  // everything in the AI box; Whisper is gone, so no transcript = nothing to draft.
+  const hasAudio = !!(fields["Audio URL"] || fields["Trimmed Audio"]);
+  const hasTranscript = !!(fields["Transcription URL"] || "").trim();
   const canSendDescriptions = hasDescription && !hasChanges && !sendMutation.isPending;
 
   return (
@@ -642,6 +648,25 @@ export default function SermonDetail() {
         </div>
       </div>
 
+      {/* Two owners, two bars: green is the media track, yellow the AI track. */}
+      {sermon && (
+        <div className="grid grid-cols-2 gap-3 mb-3" data-testid="progress-bars">
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wide">Media</span>
+              <span className="text-[10px] text-muted-foreground tabular-nums">{mediaProgress(sermon)}%</span>
+            </div>
+            <Progress value={mediaProgress(sermon)} className="h-1.5 [&>div]:bg-emerald-500" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">AI content</span>
+              <span className="text-[10px] text-muted-foreground tabular-nums">{aiProgress(sermon)}%</span>
+            </div>
+            <Progress value={aiProgress(sermon)} className="h-1.5 [&>div]:bg-primary" />
+          </div>
+        </div>
+      )}
       {/* Two-column layout on larger screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Left column — Workflow Steps */}
@@ -685,54 +710,12 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 2: Descript Service Transcript */}
-            <WorkflowStep
-              title="Descript Service Transcript"
-              icon={<FileText className="w-3.5 h-3.5" />}
-              isComplete={!!fields["Transcription URL"]}
-              stepNumber={2}
-            >
-              <UrlField
-                label="Descript transcript (Drive link)"
-                value={fields["Transcription URL"] || ""}
-                fieldName="Transcription URL"
-                onChange={handleFieldChange}
-                placeholder="google drive link"
-                level="wanted"
-              />
-              <CheckboxField
-                label="Added to Google Drive?"
-                checked={!!fields["Added to Drive"]}
-                fieldName="Added to Drive"
-                onChange={handleFieldChange}
-              />
-              {!!(fields["Audio URL"] || fields["Trimmed Audio"]) && (
-                <div className="pt-1 space-y-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 h-7 text-xs w-full"
-                    disabled={descriptMutation.isPending}
-                    onClick={() => descriptMutation.mutate()}
-                    data-testid="button-descript-sunday"
-                    title="Send the audio to Descript, then draft descriptions + moments"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                    {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
-                  </Button>
-                  <p className="text-[10px] text-muted-foreground/70">
-                    Transcribes the audio with Descript, then drafts descriptions and moment quotes. ~10 min.
-                  </p>
-                </div>
-              )}
-            </WorkflowStep>
-
-            {/* SUNDAY Step 3: YouTube */}
+            {/* SUNDAY Step 2: YouTube */}
             <WorkflowStep
               title="YouTube"
               icon={<Youtube className="w-3.5 h-3.5" />}
               isComplete={!!(fields["YouTube Full Service URL"] && fields["YouTube Trimmed URL"] && fields["YouTube Hidden"])}
-              stepNumber={3}
+              stepNumber={2}
             >
               <UrlField
                 label="Full Service"
@@ -761,12 +744,12 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 4: Facebook */}
+            {/* SUNDAY Step 3: Facebook */}
             <WorkflowStep
               title="Facebook"
               icon={<SiFacebook className="w-3.5 h-3.5" />}
               isComplete={!!fields["Facebook Done"]}
-              stepNumber={4}
+              stepNumber={3}
             >
               <CheckboxField
                 label="Trimmed and Titled"
@@ -776,12 +759,12 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* SUNDAY Step 5: Website */}
+            {/* SUNDAY Step 4: Website */}
             <WorkflowStep
               title="Website"
               icon={<Globe className="w-3.5 h-3.5" />}
               isComplete={!!fields["Website Done"]}
-              stepNumber={5}
+              stepNumber={4}
             >
               <div className="space-y-1">
                 <Button
@@ -853,53 +836,12 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* WEDNESDAY Step 3: Descript Service Transcript */}
-            <WorkflowStep
-              title="Descript Service Transcript"
-              icon={<FileText className="w-3.5 h-3.5" />}
-              isComplete={!!fields["Transcription URL"]}
-              stepNumber={3}
-            >
-              <UrlField
-                label="Descript transcript (Drive link)"
-                value={fields["Transcription URL"] || ""}
-                fieldName="Transcription URL"
-                onChange={handleFieldChange}
-                level="wanted"
-              />
-              <CheckboxField
-                label="Added to Google Drive?"
-                checked={!!fields["Added to Drive"]}
-                fieldName="Added to Drive"
-                onChange={handleFieldChange}
-              />
-              {!!(fields["Audio URL"] || fields["Trimmed Audio"]) && (
-                <div className="pt-1 space-y-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 h-7 text-xs w-full"
-                    disabled={descriptMutation.isPending}
-                    onClick={() => descriptMutation.mutate()}
-                    data-testid="button-descript-wednesday"
-                    title="Send the audio to Descript, then draft descriptions + moments"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                    {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
-                  </Button>
-                  <p className="text-[10px] text-muted-foreground/70">
-                    Transcribes the audio with Descript, then drafts descriptions and moment quotes. ~10 min.
-                  </p>
-                </div>
-              )}
-            </WorkflowStep>
-
-            {/* WEDNESDAY Step 4: Trim Live Streams */}
+            {/* WEDNESDAY Step 3: Trim Live Streams */}
             <WorkflowStep
               title="Trim Live Streams"
               icon={<ScissorsLineDashed className="w-3.5 h-3.5" />}
               isComplete={!!(fields["Facebook Done"] && fields["Wednesday YouTube Trimmed"])}
-              stepNumber={4}
+              stepNumber={3}
             >
               <CheckboxField
                 label="Facebook"
@@ -915,12 +857,12 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* WEDNESDAY Step 5: YouTube Link */}
+            {/* WEDNESDAY Step 4: YouTube Link */}
             <WorkflowStep
               title="YouTube Link"
               icon={<Link2 className="w-3.5 h-3.5" />}
               isComplete={!!fields["Wednesday YouTube Link"]}
-              stepNumber={5}
+              stepNumber={4}
             >
               <UrlField
                 label="YouTube Link"
@@ -931,12 +873,12 @@ export default function SermonDetail() {
               />
             </WorkflowStep>
 
-            {/* WEDNESDAY Step 6: Website */}
+            {/* WEDNESDAY Step 5: Website */}
             <WorkflowStep
               title="Website"
               icon={<Globe className="w-3.5 h-3.5" />}
               isComplete={!!fields["Website Done"]}
-              stepNumber={6}
+              stepNumber={5}
             >
               <div className="space-y-1">
                 <Button
@@ -1012,10 +954,10 @@ export default function SermonDetail() {
             size="sm"
             variant="outline"
             className="gap-1.5 h-7 text-xs"
-            disabled={prepareMutation.isPending}
+            disabled={prepareMutation.isPending || !hasTranscript}
             onClick={() => prepareMutation.mutate(false)}
             data-testid="button-prepare-sermon"
-            title="Draft descriptions + moments from the transcript with AI"
+            title={hasTranscript ? "Draft descriptions + moments from the transcript with AI" : "Needs the Descript transcript first"}
           >
             <Wand2 className="w-3 h-3" />
             {prepareMutation.isPending ? "Starting..." : "Prepare with AI"}
@@ -1024,10 +966,10 @@ export default function SermonDetail() {
             size="sm"
             variant="outline"
             className="gap-1.5 h-7 text-xs"
-            disabled={prepareMutation.isPending}
+            disabled={prepareMutation.isPending || !hasTranscript}
             onClick={() => prepareMutation.mutate(true)}
             data-testid="button-regenerate-moments"
-            title="Re-pick moments from the transcript. Moments you have reviewed are kept; only untouched ones are replaced."
+            title={hasTranscript ? "Re-pick moments from the transcript. Moments you have reviewed are kept; only untouched ones are replaced." : "Needs the Descript transcript first"}
           >
             <Wand2 className="w-3 h-3" />
             Re-pick moments
@@ -1035,6 +977,40 @@ export default function SermonDetail() {
         </div>
       </div>
       <div className="space-y-3">
+        {/* The transcript comes from Descript, fed by the Drive audio. It is the
+            source for every draft below, so it leads the box. */}
+        <div className="space-y-1.5 rounded-md border border-primary/30 bg-background/60 p-2">
+          <UrlField
+            label="Descript transcript"
+            value={fields["Transcription URL"] || ""}
+            fieldName="Transcription URL"
+            onChange={handleFieldChange}
+            placeholder="filled in by Generate Transcript + Descriptions"
+            level="wanted"
+          />
+          {hasAudio ? (
+            <>
+              <Button
+                size="sm"
+                className="gap-1.5 h-7 text-xs w-full"
+                disabled={descriptMutation.isPending}
+                onClick={() => descriptMutation.mutate()}
+                data-testid="button-descript"
+                title="Send the audio to Descript, then draft descriptions + moments"
+              >
+                <Wand2 className="w-3 h-3" />
+                {descriptMutation.isPending ? "Starting..." : "Generate Transcript + Descriptions"}
+              </Button>
+              <p className="text-[10px] text-muted-foreground/70">
+                Sends the Drive audio to Descript for the transcript, then drafts descriptions and moment quotes. ~10 min.
+              </p>
+            </>
+          ) : (
+            <p className="text-[10px] text-amber-400/90" data-testid="text-needs-audio">
+              Add the Audio URL (Google Drive link) in the workflow first. The audio goes to Descript for the transcript, and everything below is drafted from it.
+            </p>
+          )}
+        </div>
         {/* Steering note sits ABOVE the drafts: you aim the AI, then regenerate. */}
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground inline-flex items-center gap-1">
@@ -1093,17 +1069,6 @@ export default function SermonDetail() {
             placeholder="Optional. If filled, this wins over the AI version at publish."
             collapsedHeight="h-[80px]" className={`text-xs bg-background${fieldRing("optional", fields["Manual Long Description"])}`}
           />
-        </div>
-        <div className="pt-0.5">
-          <CheckboxField
-            label="Descriptions Approved"
-            checked={!!fields["Descriptions Reviewed"]}
-            fieldName="Descriptions Reviewed"
-            onChange={handleFieldChange}
-          />
-          <p className="text-[10px] text-muted-foreground/70 pl-6">
-            Check once you've reviewed and approved the descriptions above.
-          </p>
         </div>
         {/* Descriptions publish on their own, so approving copy never holds up
             the video (and re-sending the sermon never overwrites this copy). */}
